@@ -1,214 +1,478 @@
 <x-app-layout>
-    <div class="bg-gradient-to-br from-gray-50 to-gray-100" x-data="sdbManager()"
+    <div class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen" x-data="sdbManager()"
         @keydown.escape.window="handleEscape()">
         <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-            {{-- <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"> --}}
-            <!-- Main Container with Flexbox -->
             <div class="flex items-stretch gap-6 py-6">
-                {{-- Hapus 'sticky', 'top-28', dan 'h-full' dari sini --}}
+                {{-- Panel Kiri (Detail) --}}
                 <div class="w-96 flex-shrink-0">
-
-                    {{-- Pindahkan 'sticky' dan 'top-28' ke div baru ini --}}
                     <div class="sticky top-28">
                         @include('components.sdb-detail-panel')
                     </div>
-
                 </div>
 
+                {{-- Panel Kanan (Grid & Filter) --}}
                 <div class="flex-1 flex flex-col space-y-8">
                     @include('components.sdb-search-filter')
                     @include('components.sdb-grid')
                 </div>
             </div>
 
-            <div x-show="isExtendModalOpen" @keydown.escape.window="isExtendModalOpen = false"
-                class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
+            {{-- ======================================================================== --}}
+            {{-- MODAL 1: PERPANJANG SEWA (Existing) --}}
+            {{-- ======================================================================== --}}
+            <div x-show="isExtendModalOpen"
+                class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" x-cloak>
                 <div @click.outside="isExtendModalOpen = false"
-                    class="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
-                    <h3 class="text-lg font-bold mb-2">Perpanjang Masa Sewa</h3>
-                    <p class="text-sm text-gray-600 mb-6">Konfirmasi data dan pilih tanggal mulai baru untuk SDB
-                        <strong x-text="selectedSdb?.nomor_sdb"></strong>.
-                    </p>
+                    class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md transform transition-all scale-100">
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">Perpanjang Masa Sewa</h3>
+                    <p class="text-sm text-gray-500 mb-6">Update data untuk SDB <strong
+                            x-text="selectedSdb?.nomor_sdb"></strong>.</p>
 
-                    {{-- Bagian Nama Nasabah (Bisa Diedit) --}}
-                    <div class="mb-4">
-                        <label for="modal_nama_nasabah" class="block text-sm font-medium text-gray-700">Nama
-                            Nasabah</label>
-
-                        {{-- Tampilan Nama (Mode Normal) --}}
-                        <div x-show="!isEditingNameInModal" class="flex items-center justify-between mt-1">
-                            {{-- Hapus ID dari elemen <p> ini --}}
-                            <p class="font-semibold text-gray-800" x-text="modalFormData.nama_nasabah"></p>
-                            <button @click="isEditingNameInModal = true"
-                                class="text-xs font-semibold text-blue-600 hover:underline">Edit</button>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Nama
+                                Nasabah</label>
+                            <input type="text" x-model="modalFormData.nama_nasabah"
+                                class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         </div>
-
-                        {{-- Input Nama (Mode Edit) --}}
-                        <div x-show="isEditingNameInModal" class="mt-1">
-                            {{-- Tambahkan ID yang cocok dengan 'for' pada label --}}
-                            <input type="text" id="modal_nama_nasabah" x-model="modalFormData.nama_nasabah"
-                                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                placeholder="Nama lengkap nasabah">
+                        <div>
+                            <label
+                                class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Tanggal
+                                Mulai Baru</label>
+                            <input type="date" x-model="modalFormData.tanggal_mulai_baru"
+                                class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         </div>
                     </div>
 
-                    {{-- Bagian Tanggal Mulai Baru --}}
-                    <div class="mb-6">
-                        <label for="new_start_date" class="block text-sm font-medium text-gray-700">Tanggal Mulai
-                            Baru</label>
-                        <input type="date" id="new_start_date" x-model="modalFormData.tanggal_mulai_baru"
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                    </div>
-
-                    {{-- Tombol Aksi --}}
-                    <div class="flex" :class="isEditingNameInModal ? 'justify-end' : 'justify-between'">
-                        <div x-show="isEditingNameInModal" class="flex justify-end gap-3 w-full">
-                            <button @click="isEditingNameInModal = false"
-                                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Selesai
-                                Edit</button>
-                        </div>
-                        <div x-show="!isEditingNameInModal" class="flex justify-end gap-3 w-full">
-                            <button @click="isExtendModalOpen = false"
-                                class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Batal</button>
-                            <button @click="submitExtendRental()"
-                                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Simpan
-                                Perpanjangan</button>
-                        </div>
+                    <div class="flex justify-end gap-3 mt-8">
+                        <button @click="isExtendModalOpen = false"
+                            class="px-5 py-2.5 rounded-xl text-gray-600 font-medium hover:bg-gray-100 transition-colors">Batal</button>
+                        <button @click="submitExtendRental()"
+                            class="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all">Simpan
+                            Perubahan</button>
                     </div>
                 </div>
             </div>
 
-            {{-- Modal Konfirmasi Akhiri Sewa --}}
-            <div x-show="isEndRentalModalOpen" @keydown.escape.window="isEndRentalModalOpen = false"
-                class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" x-cloak>
+            {{-- ======================================================================== --}}
+            {{-- MODAL 2: AKHIRI SEWA (Existing) --}}
+            {{-- ======================================================================== --}}
+            <div x-show="isEndRentalModalOpen"
+                class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" x-cloak>
                 <div @click.outside="isEndRentalModalOpen = false"
-                    class="bg-white rounded-xl shadow-lg p-6 w-full max-w-md text-center">
-
-                    {{-- Ikon Peringatan --}}
-                    <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-                        <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md text-center">
+                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-50 mb-6">
+                        <svg class="h-8 w-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
                             </path>
                         </svg>
                     </div>
-
-                    {{-- Judul dan Deskripsi --}}
-                    <h3 class="text-lg font-bold text-gray-900 mb-2">Konfirmasi Akhiri Sewa</h3>
-                    <p class="text-sm text-gray-600 mb-1">
-                        Anda akan mengakhiri sewa untuk SDB <strong x-text="selectedSdb?.nomor_sdb"></strong>
-                        atas nama <strong x-text="selectedSdb?.nama_nasabah"></strong>.
-                    </p>
-                    <p class="text-sm font-semibold text-red-600 mb-6">
-                        Tindakan ini tidak dapat dibatalkan dan semua data penyewa akan dihapus.
-                    </p>
-
-                    {{-- Tombol Aksi --}}
-                    <div class="flex justify-center gap-4">
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">Konfirmasi Akhiri Sewa</h3>
+                    <p class="text-gray-500 mb-8">Apakah Anda yakin ingin mengakhiri sewa SDB <strong
+                            x-text="selectedSdb?.nomor_sdb"></strong>? Data akan dipindahkan ke arsip.</p>
+                    <div class="flex gap-3">
                         <button @click="isEndRentalModalOpen = false"
-                            class="w-full px-4 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-semibold">
-                            Batal
-                        </button>
+                            class="flex-1 px-5 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200">Batal</button>
                         <button @click="submitEndRental()"
-                            class="w-full px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold">
-                            Ya, Akhiri Sewa
+                            class="flex-1 px-5 py-2.5 rounded-xl bg-red-600 text-white font-medium hover:bg-red-700 shadow-lg shadow-red-500/30">Ya,
+                            Akhiri</button>
+                    </div>
+                </div>
+            </div>
+
+            {{-- ======================================================================== --}}
+            {{-- MODAL 3: CATAT KUNJUNGAN (BARU FASE 2) --}}
+            {{-- ======================================================================== --}}
+            <div x-show="isVisitModalOpen"
+                class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" x-cloak>
+                <div @click.outside="isVisitModalOpen = false"
+                    class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-bold text-gray-900">Catat Kunjungan Baru</h3>
+                        <button @click="isVisitModalOpen = false" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Nama
+                                Pengunjung</label>
+                            <input type="text" x-model="visitFormData.nama_pengunjung"
+                                class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                placeholder="Sesuai KTP / Surat Kuasa">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Waktu
+                                Kunjungan</label>
+                            <input type="datetime-local" x-model="visitFormData.waktu_kunjung"
+                                class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label
+                                class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Keterangan
+                                (Opsional)</label>
+                            <textarea x-model="visitFormData.keterangan" rows="3"
+                                class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                placeholder="Contoh: Ambil dokumen, didampingi kuasa hukum..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-3 mt-8">
+                        <button @click="isVisitModalOpen = false"
+                            class="px-5 py-2.5 rounded-xl text-gray-600 font-medium hover:bg-gray-100 transition-colors">Batal</button>
+                        <button @click="submitVisit()"
+                            class="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all">
+                            <span x-show="!isLoading">Simpan Kunjungan</span>
+                            <span x-show="isLoading">Menyimpan...</span>
                         </button>
                     </div>
                 </div>
             </div>
+
+            {{-- ======================================================================== --}}
+            {{-- MODAL 4: LIHAT RIWAYAT (BARU FASE 2) --}}
+            {{-- ======================================================================== --}}
+            <div x-show="isHistoryModalOpen"
+                class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" x-cloak>
+                <div @click.outside="closeHistoryModal()"
+                    class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col">
+
+                    {{-- Header Modal --}}
+                    <div
+                        class="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-900">Arsip Data SDB <span
+                                    x-text="selectedSdb?.nomor_sdb"></span></h3>
+                            <p class="text-sm text-gray-500 mt-1">Rekam jejak penyewaan dan log kunjungan nasabah.</p>
+                        </div>
+                        <button @click="closeHistoryModal()"
+                            class="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                            <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    {{-- Tab Navigation --}}
+                    <div class="flex px-8 border-b border-gray-200 bg-white">
+                        <button @click="activeHistoryTab = 'sewa'"
+                            class="px-6 py-4 text-sm font-semibold border-b-2 transition-colors"
+                            :class="activeHistoryTab === 'sewa' ? 'border-blue-600 text-blue-600' :
+                                'border-transparent text-gray-500 hover:text-gray-700'">
+                            Riwayat Sewa
+                        </button>
+                        <button @click="activeHistoryTab = 'kunjungan'"
+                            class="px-6 py-4 text-sm font-semibold border-b-2 transition-colors"
+                            :class="activeHistoryTab === 'kunjungan' ? 'border-blue-600 text-blue-600' :
+                                'border-transparent text-gray-500 hover:text-gray-700'">
+                            Riwayat Kunjungan
+                        </button>
+                    </div>
+
+                    {{-- Content Area --}}
+                    <div class="flex-1 overflow-y-auto p-8 bg-gray-50/50">
+
+                        {{-- Loading State --}}
+                        <div x-show="isLoadingHistory" class="flex justify-center items-center h-full">
+                            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                        </div>
+
+                        {{-- TAB 1: DATA HISTORY SEWA --}}
+                        <div x-show="!isLoadingHistory && activeHistoryTab === 'sewa'">
+                            <div x-show="historyData.rental_histories.length === 0"
+                                class="text-center py-12 text-gray-500">
+                                Belum ada arsip sewa untuk unit ini.
+                            </div>
+                            <div x-show="historyData.rental_histories.length > 0" class="space-y-4">
+                                <template x-for="history in historyData.rental_histories" :key="history.id">
+                                    <div
+                                        class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                                        <div class="flex justify-between items-start mb-3">
+                                            <div>
+                                                <h4 class="font-bold text-gray-900" x-text="history.nama_nasabah">
+                                                </h4>
+                                                {{-- <span
+                                                    class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded mt-1 inline-block"
+                                                    x-text="history.nomor_sdb"></span> --}}
+                                            </div>
+                                            <span
+                                                class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 uppercase"
+                                                x-text="history.status_akhir"></span>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
+                                            <div>
+                                                <p class="text-xs text-gray-400">Mulai Sewa</p>
+                                                <p class="font-medium" x-text="formatDate(history.tanggal_mulai)"></p>
+                                            </div>
+                                            <div>
+                                                <p class="text-xs text-gray-400">Berakhir</p>
+                                                <p class="font-medium" x-text="formatDate(history.tanggal_berakhir)">
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div class="text-xs text-gray-500 border-t border-gray-50 pt-3">
+                                            <span class="font-medium">Catatan:</span> <span
+                                                x-text="history.catatan || '-'"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        {{-- TAB 2: DATA KUNJUNGAN --}}
+                        <div x-show="!isLoadingHistory && activeHistoryTab === 'kunjungan'">
+                            <div x-show="historyData.visits.length === 0" class="text-center py-12 text-gray-500">
+                                Belum ada data kunjungan tercatat.
+                            </div>
+                            <table x-show="historyData.visits.length > 0"
+                                class="min-w-full bg-white rounded-xl overflow-hidden shadow-sm">
+                                <thead class="bg-gray-100 text-gray-600 text-xs uppercase font-semibold">
+                                    <tr>
+                                        <th class="px-6 py-4 text-left">Waktu</th>
+                                        <th class="px-6 py-4 text-left">Pengunjung</th>
+                                        <th class="px-6 py-4 text-left">Petugas</th>
+                                        <th class="px-6 py-4 text-left">Keterangan</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100 text-sm">
+                                    <template x-for="visit in historyData.visits" :key="visit.id">
+                                        <tr class="hover:bg-gray-50 transition-colors">
+                                            <td class="px-6 py-4 text-gray-900 font-medium"
+                                                x-text="formatDateTime(visit.waktu_kunjung)"></td>
+                                            <td class="px-6 py-4 text-gray-700" x-text="visit.nama_pengunjung"></td>
+                                            <td class="px-6 py-4 text-gray-500"
+                                                x-text="visit.petugas?.name || 'Unknown'"></td>
+                                            <td class="px-6 py-4 text-gray-500 italic"
+                                                x-text="visit.keterangan || '-'"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
-    </div>
 
-    <!-- Alpine.js Main Script -->
+    {{-- SCRIPT UTAMA ALPINE.JS (FINAL & STANDARDIZED) --}}
+    {{-- SCRIPT UTAMA ALPINE.JS (FIXED: Added searchAndSelect) --}}
     <script>
         function sdbManager() {
             return {
+                // --- STATE UTAMA ---
                 selectedSdb: null,
                 editMode: false,
-                formData: {
-                    nama_nasabah: '',
-                    tanggal_sewa: '',
-                    tanggal_jatuh_tempo: ''
-                },
+                isLoading: false,
+
+                // --- FILTER STATE ---
                 filters: {
                     search: '',
                     status: '',
                     tipe: ''
                 },
 
+                // --- DATA ---
+                sdbLayouts: @json($sdbLayouts ?? []),
+                sdbDataMap: @json($sdbDataMap ?? []),
+                allUnits: @json($allUnits ?? []),
+                filteredUnits: @json(collect($allUnits ?? [])->pluck('id')->toArray()),
+
+                // --- STATE FORM & MODAL ---
+                formData: {
+                    nama_nasabah: '',
+                    tanggal_sewa: '',
+                    tanggal_jatuh_tempo: ''
+                },
+
+                // Modal Perpanjang
                 isExtendModalOpen: false,
-                isEditingNameInModal: false,
-                isEndRentalModalOpen: false,
                 modalFormData: {
                     nama_nasabah: '',
                     tanggal_mulai_baru: ''
                 },
 
-                newExtendStartDate: new Date().toISOString().slice(0, 10), // Default hari ini
+                // Modal Akhiri Sewa
+                isEndRentalModalOpen: false,
 
-                sdbLayouts: @json($sdbLayouts ?? []),
-                sdbDataMap: @json($sdbDataMap ?? []),
-                allUnits: @json($allUnits ?? []),
-                filteredUnits: @json(collect($allUnits ?? [])->pluck('id')->toArray()),
-                isLoading: false,
+                // --- STATE FASE 2 (HISTORY & VISIT) ---
+                isVisitModalOpen: false,
+                visitFormData: {
+                    nama_pengunjung: '',
+                    waktu_kunjung: '',
+                    keterangan: ''
+                },
 
+                isHistoryModalOpen: false,
+                isLoadingHistory: false,
+                activeHistoryTab: 'sewa',
+                historyData: {
+                    rental_histories: [],
+                    visits: []
+                },
+
+                // --- COMPUTED PROPERTIES ---
                 get isFilterActive() {
-                    return this.filters.search.trim() !== '' || this.filters.status !== '' || this.filters.tipe !== '';
+                    return !!this.filters.search || !!this.filters.status || !!this.filters.tipe;
+                },
+
+                // --- TIMEZONE HELPER (BEST PRACTICE) ---
+                getLocalISOString() {
+                    const now = new Date();
+                    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                    return now.toISOString().slice(0, 16);
+                },
+
+                getLocalDateString() {
+                    return this.getLocalISOString().slice(0, 10);
+                },
+
+                // --- INISIALISASI ---
+                init() {
+                    this.applyFilters();
+                    this.$watch('formData.tanggal_sewa', (newDate) => this.autoCalculateDueDate(newDate));
+                },
+
+                initFormData() {
+                    const isEditing = !!this.selectedSdb?.nama_nasabah;
+                    this.formData = {
+                        nama_nasabah: this.selectedSdb?.nama_nasabah || '',
+                        tanggal_sewa: isEditing ? this.selectedSdb.tanggal_sewa : this.getLocalDateString(),
+                        tanggal_jatuh_tempo: this.selectedSdb?.tanggal_jatuh_tempo || '',
+                        tipe: this.selectedSdb?.tipe || ''
+                    };
+                },
+
+                // --- LOGIC FASE 2 ---
+                openVisitModal() {
+                    if (!this.selectedSdb) return;
+                    this.visitFormData = {
+                        nama_pengunjung: this.selectedSdb.nama_nasabah || '',
+                        waktu_kunjung: this.getLocalISOString(),
+                        keterangan: ''
+                    };
+                    this.isVisitModalOpen = true;
+                },
+
+                async submitVisit() {
+                    if (!this.visitFormData.nama_pengunjung || !this.visitFormData.waktu_kunjung) {
+                        window.showNotification('Nama & Waktu wajib diisi', 'warning');
+                        return;
+                    }
+                    this.isLoading = true;
+                    try {
+                        const response = await fetch(`/sdb/${this.selectedSdb.id}/visit`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
+                                    'content')
+                            },
+                            body: JSON.stringify(this.visitFormData)
+                        });
+                        if (response.ok) {
+                            window.showNotification('Kunjungan berhasil dicatat', 'success');
+                            this.isVisitModalOpen = false;
+                        } else {
+                            window.showNotification('Gagal menyimpan data', 'error');
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        window.showNotification('Terjadi kesalahan sistem', 'error');
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
+                async openHistoryModal() {
+                    if (!this.selectedSdb) return;
+                    this.isHistoryModalOpen = true;
+                    this.isLoadingHistory = true;
+                    this.activeHistoryTab = 'sewa';
+                    try {
+                        const response = await fetch(`/sdb/${this.selectedSdb.id}/history`);
+                        const result = await response.json();
+                        this.historyData = {
+                            rental_histories: result.rental_histories || [],
+                            visits: result.visits || []
+                        };
+                    } catch (e) {
+                        console.error(e);
+                        window.showNotification('Gagal memuat riwayat', 'error');
+                    } finally {
+                        this.isLoadingHistory = false;
+                    }
+                },
+
+                closeHistoryModal() {
+                    this.isHistoryModalOpen = false;
+                    this.historyData = {
+                        rental_histories: [],
+                        visits: []
+                    };
+                },
+
+                // --- LOGIC OPERASIONAL UTAMA ---
+
+                // [RESTORED] Fungsi Auto-Select saat Enter ditekan
+                async searchAndSelect() {
+                    // 1. Pastikan filter diterapkan terbaru
+                    await this.applyFilters();
+
+                    if (this.filters.search) {
+                        const keyword = this.filters.search.toLowerCase();
+
+                        // Filter manual dari data lokal untuk mencari match
+                        // Kita cari unit yang ID-nya ada di filteredUnits
+                        const visibleUnits = this.allUnits.filter(u => this.filteredUnits.includes(u.id));
+
+                        // A. Prioritas 1: Mencari yang NOMOR SDB-nya persis sama (Exact Match)
+                        const exactMatch = visibleUnits.find(u => u.nomor_sdb.toLowerCase() === keyword);
+
+                        if (exactMatch) {
+                            this.showDetail(exactMatch.id);
+                        }
+                        // B. Prioritas 2: Jika hasil filter cuma tersisa 1, langsung pilih itu
+                        else if (visibleUnits.length === 1) {
+                            this.showDetail(visibleUnits[0].id);
+                        }
+                    }
                 },
 
                 handleEscape() {
-                    if (this.editMode) {
-                        this.cancelEdit();
-                    } else if (this.selectedSdb) {
-                        this.clearSelection();
-                    }
+                    if (this.isVisitModalOpen) this.isVisitModalOpen = false;
+                    else if (this.isHistoryModalOpen) this.closeHistoryModal();
+                    else if (this.isExtendModalOpen) this.isExtendModalOpen = false;
+                    else if (this.editMode) this.cancelEdit();
+                    else if (this.selectedSdb) this.clearSelection();
                 },
 
-
-                init() {
-                    this.applyFilters();
-
-                    this.$watch('formData.tanggal_sewa', (newDate) => {
-                        if (this.editMode && this.selectedSdb?.status !== 'lewat_jatuh_tempo') {
-                            if (newDate) {
-                                const parts = newDate.split('-').map(Number);
-                                const startDate = new Date(parts[0], parts[1] - 1, parts[2]);
-
-                                startDate.setFullYear(startDate.getFullYear() + 1);
-
-                                const year = startDate.getFullYear();
-                                const month = String(startDate.getMonth() + 1).padStart(2, '0');
-                                const day = String(startDate.getDate()).padStart(2, '0');
-
-                                this.formData.tanggal_jatuh_tempo = `${year}-${month}-${day}`;
-                            } else {
-                                this.formData.tanggal_jatuh_tempo = '';
-                            }
-                        }
-                    });
+                autoCalculateDueDate(newDate) {
+                    if (this.editMode && this.selectedSdb?.status !== 'lewat_jatuh_tempo' && newDate) {
+                        const date = new Date(newDate);
+                        date.setFullYear(date.getFullYear() + 1);
+                        this.formData.tanggal_jatuh_tempo = date.toISOString().split('T')[0];
+                    }
                 },
 
                 async applyFilters() {
-                    if (!this.filters.search) {
-                        this.clearSelection();
-                    }
-
+                    if (!this.filters.search) this.clearSelection();
                     this.isLoading = true;
                     try {
-                        const params = new URLSearchParams();
-                        if (this.filters.search) params.append('search', this.filters.search);
-                        if (this.filters.status) params.append('status', this.filters.status);
-                        if (this.filters.tipe) params.append('tipe', this.filters.tipe);
-
-                        const response = await fetch(`/sdb-filtered?${params.toString()}`);
-                        if (!response.ok) throw new Error('Failed to fetch filtered data');
-
+                        const params = new URLSearchParams(this.filters).toString();
+                        const response = await fetch(`/sdb-filtered?${params}`);
                         const data = await response.json();
                         this.allUnits = data.units;
-                        this.filteredUnits = data.units.map(unit => unit.id);
-                    } catch (error) {
-                        console.error('Error applying filters:', error);
+                        this.filteredUnits = data.units.map(u => u.id);
+                    } catch (e) {
                         this.applyClientSideFilters();
                     } finally {
                         this.isLoading = false;
@@ -216,96 +480,29 @@
                 },
 
                 applyClientSideFilters() {
-                    let filtered = [...this.allUnits];
-
-                    if (this.filters.search) {
-                        const search = this.filters.search.toLowerCase();
-                        filtered = filtered.filter(unit =>
-                            unit.nomor_sdb.toLowerCase().includes(search) ||
-                            (unit.nama_nasabah && unit.nama_nasabah.toLowerCase().includes(search))
-                        );
-                    }
-                    if (this.filters.status) {
-                        filtered = filtered.filter(unit => unit.status === this.filters.status);
-                    }
-                    if (this.filters.tipe) {
-                        filtered = filtered.filter(unit => unit.tipe === this.filters.tipe);
-                    }
-
-                    this.filteredUnits = filtered.map(unit => unit.id);
+                    let filtered = this.allUnits.filter(u => {
+                        const matchSearch = !this.filters.search || u.nomor_sdb.toLowerCase().includes(this.filters
+                            .search.toLowerCase()) || (u.nama_nasabah || '').toLowerCase().includes(this.filters
+                            .search.toLowerCase());
+                        const matchStatus = !this.filters.status || u.status === this.filters.status;
+                        const matchTipe = !this.filters.tipe || u.tipe === this.filters.tipe;
+                        return matchSearch && matchStatus && matchTipe;
+                    });
+                    this.filteredUnits = filtered.map(u => u.id);
                 },
-
-                clearFilters() {
-                    this.filters = {
-                        search: '',
-                        status: '',
-                        tipe: ''
-                    };
-                    this.applyFilters();
-                },
-
-                async searchAndSelect() {
-                    const searchTerm = this.filters.search.trim();
-                    if (!searchTerm) {
-                        return;
-                    }
-                    await this.applyFilters();
-                    const exactMatch = this.allUnits.find(
-                        unit => unit.nomor_sdb.toLowerCase() === searchTerm.toLowerCase()
-                    );
-                    if (exactMatch) {
-                        this.showDetail(exactMatch.id);
-                    }
-                },
-
-                // // Fungsi untuk mendapatkan total semua unit (tidak berubah saat filter)
-                // getTotalAllUnits() {
-                //     const originalUnits = @json($sdbUnits ?? $allUnits);
-                //     return originalUnits.length;
-                // },
-
-                // // Fungsi untuk mendapatkan unit yang difilter berdasarkan tipe
-                // getFilteredUnitsByType(type) {
-                //     const filteredByType = this.allUnits.filter(unit =>
-                //         unit.tipe === type && this.filteredUnits.includes(unit.id)
-                //     );
-                //     return filteredByType.length;
-                // },
-
-                // // Update fungsi getTotalUnitsByType yang sudah ada (jika belum ada, tambahkan)
-                // getTotalUnitsByType(type) {
-                //     const originalUnits = @json($sdbUnits ?? $allUnits);
-                //     return originalUnits.filter(unit => unit.tipe === type).length;
-                // }
 
                 async showDetail(unitId) {
-                    if (this.selectedSdb && this.selectedSdb.id === unitId) {
+                    if (this.selectedSdb?.id === unitId) {
                         this.clearSelection();
                         return;
                     }
                     try {
                         const response = await fetch(`/sdb/${unitId}`);
-                        // Baris ini sudah cukup untuk menangani error server
-                        if (!response.ok) {
-                            throw new Error('Gagal mengambil data SDB dari server');
-                        }
-
                         const result = await response.json();
-
-                        // --- PERUBAHAN UTAMA DI SINI ---
-                        // Kita tidak lagi memeriksa 'result.success'. Cukup periksa keberadaan 'result.data'.
-                        if (result.data) {
-                            this.selectedSdb = result.data;
-                        } else {
-                            // Error ini akan dilempar jika format JSON tidak memiliki key 'data'
-                            throw new Error('Format data SDB tidak valid dari server');
-                        }
-                        // --- BATAS PERUBAHAN ---
-
+                        if (result.data) this.selectedSdb = result.data;
                         this.editMode = false;
-                    } catch (error) {
-                        console.error('Error fetching SDB detail:', error);
-                        window.showNotification(error.message || 'Gagal mengambil data SDB', 'error');
+                    } catch (e) {
+                        console.error(e);
                         this.clearSelection();
                     }
                 },
@@ -315,210 +512,78 @@
                     this.editMode = false;
                 },
 
-                initFormData() {
-                    // Cek apakah ini mode edit berdasarkan keberadaan nama nasabah
-                    const isEditing = !!this.selectedSdb?.nama_nasabah;
-
-                    // Jika mode edit, gunakan tanggal sewa yang ada (yang sekarang formatnya sudah benar).
-                    // Jika mode tambah baru, gunakan tanggal hari ini.
-                    const defaultTanggalSewa = isEditing ?
-                        this.selectedSdb.tanggal_sewa :
-                        new Date().toISOString().slice(0, 10);
-
-                    this.formData = {
-                        nama_nasabah: this.selectedSdb?.nama_nasabah || '',
-                        tanggal_sewa: defaultTanggalSewa,
-                        // Kita biarkan jatuh tempo dihitung oleh $watch atau backend
-                        tanggal_jatuh_tempo: this.selectedSdb?.tanggal_jatuh_tempo || '',
-                        tipe: this.selectedSdb?.tipe || ''
-                    };
-                },
-
                 cancelEdit() {
                     this.editMode = false;
-                    this.formData = {
-                        nama_nasabah: '',
-                        tanggal_sewa: '',
-                        tanggal_jatuh_tempo: ''
-                    };
                 },
 
                 validateForm() {
-                    if (!this.formData.nama_nasabah.trim()) {
-                        window.showNotification('Nama nasabah harus diisi', 'warning');
-                        return false;
-                    }
-                    if (!this.formData.tanggal_sewa) {
-                        window.showNotification('Tanggal sewa harus diisi', 'warning');
-                        return false;
-                    }
-                    if (!this.formData.tanggal_jatuh_tempo) {
-                        window.showNotification('Tanggal jatuh tempo harus diisi', 'warning');
-                        return false;
-                    }
+                    if (!this.formData.nama_nasabah.trim()) return false;
                     return true;
                 },
 
-                updateLocalUnitData(updatedUnit) {
-                    // --- MATA-MATA ---
-                    // console.log("Fungsi updateLocalUnitData dipanggil dengan data:", updatedUnit);
-                    // console.log("Nomor SDB yang akan diupdate:", updatedUnit.nomor_sdb);
-                    // console.log("Data LAMA di map:", this.sdbDataMap[updatedUnit.nomor_sdb]);
-                    // -----------------
-
-                    const index = this.allUnits.findIndex(u => u.id === updatedUnit.id);
-                    if (index !== -1) {
-                        this.allUnits[index] = {
-                            ...this.allUnits[index],
-                            ...updatedUnit
-                        };
-                    }
-
-                    if (this.selectedSdb && this.selectedSdb.id === updatedUnit.id) {
-                        this.selectedSdb = {
-                            ...this.selectedSdb,
-                            ...updatedUnit
-                        };
-                    }
-
-                    const newMap = {
-                        ...this.sdbDataMap
-                    };
-                    newMap[updatedUnit.nomor_sdb] = {
-                        ...newMap[updatedUnit.nomor_sdb],
-                        ...updatedUnit
-                    };
-                    this.sdbDataMap = newMap;
-
-                    // --- MATA-MATA ---
-                    // console.log("Data BARU di map:", this.sdbDataMap[updatedUnit.nomor_sdb]);
-                    // -----------------
-                },
-
-                formatDate(dateString) {
-                    if (!dateString || typeof dateString !== 'string') {
-                        return '—';
-                    }
-                    const parts = dateString.split('-');
-                    if (parts.length !== 3) {
-                        return '—';
-                    }
-                    const year = parseInt(parts[0], 10);
-                    const month = parseInt(parts[1], 10) - 1;
-                    const day = parseInt(parts[2], 10);
-                    if (isNaN(year) || isNaN(month) || isNaN(day)) {
-                        return '—';
-                    }
-                    const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus',
-                        'September', 'Oktober', 'November', 'Desember'
-                    ];
-                    const date = new Date(year, month, day);
-                    return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
-                },
-
-                getExpiryText(status, days) {
-                    // Jangan tampilkan apa-apa jika status kosong atau data tidak valid
-                    if (status === 'kosong' || days === null) {
-                        return '';
-                    }
-
-                    if (days < 0) {
-                        return `(Lewat ${Math.abs(days)} hari)`;
-                    }
-                    if (days === 0) {
-                        return '(Jatuh tempo hari ini)';
-                    }
-                    if (days === 1) {
-                        return '(Jatuh tempo besok)';
-                    }
-                    // Untuk status 'terisi' atau 'akan_jatuh_tempo'
-                    return `(${days} hari lagi)`;
-                },
-
-                getExpiryTooltipText(status, days) {
-                    // Jangan tampilkan apa-apa jika status kosong atau data tidak valid
-                    if (status === 'kosong' || days === null) {
-                        return '';
-                    }
-
-                    if (days < 0) {
-                        return `${Math.abs(days)} hari lalu`;
-                    }
-                    if (days === 0) {
-                        return 'Jatuh tempo hari ini';
-                    }
-                    if (days === 1) {
-                        return 'Jatuh tempo besok';
-                    }
-                    // Untuk status 'terisi' atau 'akan_jatuh_tempo'
-                    return `${days} hari lagi`;
-                },
-
                 async saveData() {
-                    if (!this.validateForm()) {
-                        return;
-                    }
+                    if (!this.validateForm()) return;
                     this.isLoading = true;
                     try {
-                        const url = `/sdb/${this.selectedSdb.id}`;
-                        const response = await fetch(url, {
+                        const response = await fetch(`/sdb/${this.selectedSdb.id}`, {
                             method: 'PUT',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Accept': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
-                                    'content')
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                             },
                             body: JSON.stringify(this.formData)
                         });
-
                         const result = await response.json();
-                        if (response.ok && result.success) {
-                            window.showNotification('Data berhasil disimpan!', 'success');
+                        if (result.success) {
                             this.updateLocalUnitData(result.data);
                             this.editMode = false;
-                        } else {
-                            window.showNotification(result.message || 'Gagal menyimpan data', 'error');
+                            window.showNotification('Disimpan', 'success');
                         }
-                    } catch (error) {
-                        console.error('Error saving data:', error);
-                        window.showNotification('Terjadi kesalahan koneksi saat menyimpan data', 'error');
+                    } catch (e) {
+                        console.error(e);
                     } finally {
                         this.isLoading = false;
                     }
                 },
 
-                // GANTI FUNGSI LAMA INI...
-                endRental() {
-                    if (this.selectedSdb?.nama_nasabah) {
-                        this.isEndRentalModalOpen = true;
-                    }
+                updateLocalUnitData(updatedUnit) {
+                    const idx = this.allUnits.findIndex(u => u.id === updatedUnit.id);
+                    if (idx !== -1) this.allUnits[idx] = {
+                        ...this.allUnits[idx],
+                        ...updatedUnit
+                    };
+                    if (this.selectedSdb?.id === updatedUnit.id) this.selectedSdb = {
+                        ...this.selectedSdb,
+                        ...updatedUnit
+                    };
+                    this.sdbDataMap[updatedUnit.nomor_sdb] = {
+                        ...this.sdbDataMap[updatedUnit.nomor_sdb],
+                        ...updatedUnit
+                    };
                 },
 
-                // Fungsi ini untuk menjalankan aksi setelah dikonfirmasi di modal
+                endRental() {
+                    if (this.selectedSdb?.nama_nasabah) this.isEndRentalModalOpen = true;
+                },
+
                 async submitEndRental() {
                     this.isLoading = true;
-                    this.isEndRentalModalOpen = false; // Langsung tutup modal
+                    this.isEndRentalModalOpen = false;
                     try {
                         const response = await fetch(`/sdb/${this.selectedSdb.id}`, {
                             method: 'DELETE',
                             headers: {
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
-                                    'content')
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                             }
                         });
                         const result = await response.json();
-                        if (response.ok && result.success) {
-                            window.showNotification('Sewa berhasil diakhiri!', 'success');
-                            // Ganti 'updateLocalUnitData' dengan 'clearSelection' agar panel tertutup
+                        if (result.success) {
                             this.updateLocalUnitData(result.data);
                             this.clearSelection();
-                        } else {
-                            window.showNotification(result.message || 'Gagal mengakhiri sewa', 'error');
+                            window.showNotification('Sewa Berakhir', 'success');
                         }
-                    } catch (error) {
-                        console.error('Error ending rental:', error);
-                        window.showNotification('Terjadi kesalahan koneksi saat mengakhiri sewa', 'error');
+                    } catch (e) {
+                        console.error(e);
                     } finally {
                         this.isLoading = false;
                     }
@@ -526,138 +591,112 @@
 
                 extendRental() {
                     if (this.selectedSdb) {
-                        // Isi modalFormData dengan data terbaru saat modal dibuka
-                        this.modalFormData.nama_nasabah = this.selectedSdb.nama_nasabah;
-                        this.modalFormData.tanggal_mulai_baru = new Date().toISOString().slice(0, 10);
-
-                        this.isEditingNameInModal = false; // Selalu reset ke mode non-edit
+                        this.modalFormData = {
+                            nama_nasabah: this.selectedSdb.nama_nasabah,
+                            tanggal_mulai_baru: new Date().toISOString().slice(0, 10)
+                        };
                         this.isExtendModalOpen = true;
                     }
                 },
 
-                // Ganti fungsi submitExtendRental() yang lama dengan ini
                 async submitExtendRental() {
-                    // Validasi sederhana di frontend
-                    if (!this.modalFormData.tanggal_mulai_baru || !this.modalFormData.nama_nasabah.trim()) {
-                        window.showNotification('Nama Nasabah dan Tanggal Mulai Baru harus diisi.', 'warning');
-                        return;
-                    }
-
                     this.isLoading = true;
                     try {
                         const response = await fetch(`/sdb/${this.selectedSdb.id}/extend-rental`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Accept': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
-                                    'content')
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                             },
-                            // Kirim seluruh objek modalFormData
                             body: JSON.stringify(this.modalFormData)
                         });
-
                         const result = await response.json();
-
-                        if (response.ok && result.success) {
-                            window.showNotification('Masa sewa berhasil diperpanjang!', 'success');
-                            this.updateLocalUnitData(result.data); // Update UI
-                            this.isExtendModalOpen = false; // Tutup modal
-                        } else {
-                            window.showNotification(result.message || 'Gagal memperpanjang sewa', 'error');
+                        if (result.success) {
+                            this.updateLocalUnitData(result.data);
+                            this.isExtendModalOpen = false;
+                            window.showNotification('Diperpanjang', 'success');
                         }
-
-                    } catch (error) {
-                        console.error('Error extending rental:', error);
-                        window.showNotification('Terjadi kesalahan koneksi.', 'error');
+                    } catch (e) {
+                        console.error(e);
                     } finally {
                         this.isLoading = false;
                     }
                 },
 
+                // --- HELPER VIEW ---
+
+                getExpiryTooltipText(status, days) {
+                    if (status === 'kosong' || days === null) return '';
+                    if (days < 0) return `${Math.abs(days)} hari lalu`;
+                    if (days === 0) return 'Jatuh tempo hari ini';
+                    if (days === 1) return 'Jatuh tempo besok';
+                    return `${days} hari lagi`;
+                },
+
+                formatDate(dateStr) {
+                    if (!dateStr) return '-';
+                    return new Date(dateStr).toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
+                    });
+                },
+
+                formatDateTime(dateStr) {
+                    if (!dateStr) return '-';
+                    return new Date(dateStr).toLocaleString('id-ID', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false
+                    });
+                },
+
                 getStatusText(status) {
-                    const statusMap = {
+                    return {
                         'kosong': 'Kosong',
                         'terisi': 'Terisi',
                         'akan_jatuh_tempo': 'Akan Jatuh Tempo',
                         'lewat_jatuh_tempo': 'Lewat Jatuh Tempo'
-                    };
-                    return statusMap[status] || 'Unknown';
+                    } [status] || status;
                 },
-
-                getStatusBadgeClass(status) {
-                    const classMap = {
-                        'kosong': 'bg-gray-100 text-gray-800 border border-gray-300',
-                        'terisi': 'bg-blue-100 text-blue-800 border border-blue-300',
-                        'akan_jatuh_tempo': 'bg-yellow-100 text-yellow-800 border border-yellow-300',
-                        'lewat_jatuh_tempo': 'bg-red-100 text-red-800 border border-red-300'
-                    };
-                    return classMap[status] || 'bg-gray-100 text-gray-800 border border-gray-300';
-                },
-
-                // --- TAMBAHKAN FUNGSI BARU DI BAWAH INI ---
                 getStatusHeaderBadgeClass(status) {
-                    const classMap = {
+                    return {
                         'terisi': 'bg-white/20 text-white',
                         'akan_jatuh_tempo': 'bg-yellow-100/80 text-yellow-700',
                         'lewat_jatuh_tempo': 'bg-red-500/80 text-white'
-                    };
-                    return classMap[status] || 'bg-white/20 text-white';
+                    } [status] || 'bg-white/20 text-white';
                 },
-
                 getHeaderGradientClass() {
-                    // Jika tidak ada SDB yang dipilih, gunakan warna biru default
-                    if (!this.selectedSdb) {
-                        return 'from-blue-600 via-blue-700 to-blue-800 text-white';
-                    }
-
-                    const status = this.selectedSdb.status;
-                    const classMap = {
+                    if (!this.selectedSdb) return 'from-blue-600 via-blue-700 to-blue-800 text-white';
+                    const map = {
                         'akan_jatuh_tempo': 'from-yellow-400 via-yellow-500 to-yellow-600 text-yellow-950',
-                        'lewat_jatuh_tempo': 'from-red-500 via-red-600 to-red-700 text-white',
+                        'lewat_jatuh_tempo': 'from-red-500 via-red-600 to-red-700 text-white'
                     };
-
-                    // Untuk status 'kosong' dan 'terisi', kembalikan warna biru default
-                    return classMap[status] || 'from-blue-600 via-blue-700 to-blue-800 text-white';
+                    return map[this.selectedSdb.status] || 'from-blue-600 via-blue-700 to-blue-800 text-white';
                 },
-
-                // getHeaderGradientClass() {
-                //     // Jika tidak ada SDB yang dipilih, gunakan warna biru default
-                //     if (!this.selectedSdb) {
-                //         return 'from-blue-600 via-blue-700 to-blue-800';
-                //     }
-
-                //     const status = this.selectedSdb.status;
-                //     const classMap = {
-                //         'akan_jatuh_tempo': 'from-yellow-500 via-yellow-600 to-yellow-700',
-                //         'lewat_jatuh_tempo': 'from-red-600 via-red-700 to-red-800',
-                //     };
-
-                //     // Untuk status 'kosong' dan 'terisi', kembalikan warna biru default
-                //     return classMap[status] || 'from-blue-600 via-blue-700 to-blue-800';
-                // },
-
-                getFilteredUnitsCount() {
-                    return this.filteredUnits.length;
+                getExpiryText(status, days) {
+                    if (status === 'kosong' || days === null) return '';
+                    if (days < 0) return `(Lewat ${Math.abs(days)} hari)`;
+                    if (days === 0) return '(Jatuh tempo hari ini)';
+                    return `(${days} hari lagi)`;
                 },
                 getTotalUnitsByType(type) {
-                    // OPSI 1: Perbaikan Langsung (sudah benar)
-                    // Menggunakan data 'allUnits' yang sudah ada di properti Alpine.js.
-                    // return this.allUnits.filter(unit => unit.tipe === type).length;
-
-                    // OPSI 2: Best Practice (Lebih Cepat & Efisien)
-                    // Kita tidak perlu memfilter array besar. Jumlah total unit per tipe
-                    // sudah bisa kita ketahui dari data layout yang dikirim controller.
-                    // Ini jauh lebih ringan untuk browser.
                     if (!this.sdbLayouts[type]) return 0;
                     return this.sdbLayouts[type].grid.flat().length;
                 },
-
-                needsAction() {
-                    return this.selectedSdb?.status === 'lewat_jatuh_tempo';
+                getFilteredUnitsCount() {
+                    return this.filteredUnits.length;
                 },
-                isApproachingDue() {
-                    return this.selectedSdb?.status === 'akan_jatuh_tempo';
+                clearFilters() {
+                    this.filters = {
+                        search: '',
+                        status: '',
+                        tipe: ''
+                    };
+                    this.applyFilters();
                 }
             };
         }

@@ -1,9 +1,7 @@
-<div class="flex-shrink-0 flex flex-col bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden backdrop-blur-sm max-h-full"
-    :class="selectedSdb ? 'opacity-100' : 'opacity-60'" x-transition:all.300ms>
+<div class="flex-shrink-0 flex flex-col bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden backdrop-blur-sm max-h-full transition-opacity duration-300"
+    :class="selectedSdb ? 'opacity-100' : 'opacity-60'">
 
-    {{-- ========================================================== --}}
-    {{-- PERUBAHAN UTAMA: Header sekarang menggunakan :class dinamis --}}
-    {{-- ========================================================== --}}
+    {{-- HEADER DENGAN WARNA DINAMIS --}}
     <div class="bg-gradient-to-r px-6 py-6 flex-shrink-0 transition-colors duration-500"
         :class="getHeaderGradientClass()">
         <div class="flex items-center justify-between">
@@ -45,7 +43,7 @@
             </h3>
             <template x-if="selectedSdb">
                 <button @click="clearSelection()"
-                    class="text-blue-100 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/10"
+                    class="text-white/80 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/10"
                     title="Tutup detail">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
@@ -58,7 +56,7 @@
 
     {{-- KONTEN PANEL --}}
     <div class="flex-1 p-8 overflow-y-auto">
-        {{-- Tampilan Default (Belum ada SDB yang dipilih) --}}
+        {{-- Default State --}}
         <template x-if="!selectedSdb">
             <div class="flex flex-col items-center justify-center text-center text-gray-500 h-full">
                 <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-full p-8 mb-6 shadow-inner">
@@ -74,19 +72,17 @@
             </div>
         </template>
 
-        {{-- Tampilan Saat SDB Sudah Dipilih --}}
+        {{-- SDB Selected State --}}
         <template x-if="selectedSdb">
             <div>
                 <div class="pb-6">
                     {{-- Form Fields & Info Display --}}
                     <div class="space-y-6">
 
-                        {{-- ========================================================== --}}
-                        {{-- KODE BARU: Tampilan Untuk SDB yang Kosong (UI Improvement) --}}
-                        {{-- ========================================================== --}}
+                        {{-- Tampilan Untuk SDB yang Kosong --}}
                         <div x-show="selectedSdb.status === 'kosong' && !editMode"
                             class="text-center text-gray-600 py-8">
-                            <div class="inline-block bg-gray-100 rounded-full p-5 mb-5">
+                            <div class="inline-block bg-gray-50 rounded-full p-5 mb-5 border border-gray-100">
                                 <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor"
                                     viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -95,106 +91,115 @@
                                 </svg>
                             </div>
                             <h4 class="text-lg font-semibold text-gray-800">SDB Ini Kosong</h4>
-                            <p class="text-sm mt-1">Belum ada data penyewa. Klik tombol di bawah untuk
-                                menambahkan penyewa baru.</p>
+                            <p class="text-sm mt-1 text-gray-500">Belum ada data penyewa aktif.</p>
                         </div>
 
                         {{-- Field Nama Nasabah --}}
                         <div x-show="selectedSdb.status !== 'kosong' || editMode">
                             <label for="nama_nasabah"
-                                class="text-sm font-medium text-gray-500 flex items-center mb-2"><svg
-                                    class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                                </svg>Nama Nasabah</label>
+                                class="text-xs font-bold text-gray-400 uppercase tracking-wide flex items-center mb-2">
+                                Nama Nasabah
+                            </label>
                             <div x-show="!editMode"
-                                class="bg-gray-50 rounded-lg px-4 py-3 text-gray-900 font-semibold text-base"
+                                class="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 font-bold text-lg shadow-sm"
                                 x-text="selectedSdb?.nama_nasabah || '—'"></div>
                             <input id="nama_nasabah" x-show="editMode" type="text" x-model="formData.nama_nasabah"
-                                class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-lg"
                                 placeholder="Nama lengkap">
                         </div>
 
                         {{-- Field Tanggal Sewa --}}
                         <div x-show="selectedSdb.status !== 'kosong' || editMode">
-                            <label for="tanggal_sewa" class="text-sm font-medium text-gray-500 flex items-center mb-2">
-                                <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
-                                    </path>
-                                </svg>
+                            <label
+                                class="text-xs font-bold text-gray-400 uppercase tracking-wide flex items-center mb-2">
                                 Tanggal Sewa
                             </label>
                             <div x-show="!editMode"
-                                class="bg-gray-50 rounded-lg px-4 py-3 text-gray-900 font-semibold text-base"
+                                class="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 font-medium text-base shadow-sm"
                                 x-text="formatDate(selectedSdb?.tanggal_sewa)">
                             </div>
-                            <input id="tanggal_sewa" x-show="editMode" type="date" x-model="formData.tanggal_sewa"
-                                class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <input type="date" x-show="editMode" x-model="formData.tanggal_sewa"
+                                class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         </div>
 
                         {{-- Field Jatuh Tempo --}}
                         <div x-show="selectedSdb.status !== 'kosong' || editMode">
-                            <label for="tanggal_jatuh_tempo"
-                                class="text-sm font-medium text-gray-500 flex items-center mb-2"><svg
-                                    class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>Jatuh Tempo</label>
+                            <label
+                                class="text-xs font-bold text-gray-400 uppercase tracking-wide flex items-center mb-2">
+                                Jatuh Tempo
+                            </label>
 
-                            {{-- Tampilan saat tidak dalam mode edit --}}
                             <div x-show="!editMode"
-                                class="bg-gray-50 rounded-lg px-4 py-3 font-semibold text-base flex items-center justify-between"
+                                class="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-medium text-base flex items-center justify-between shadow-sm"
                                 :class="{
-                                    'text-red-600': selectedSdb?.status === 'lewat_jatuh_tempo',
-                                    'text-yellow-600': selectedSdb?.status === 'akan_jatuh_tempo',
-                                    'text-gray-900': selectedSdb?.tanggal_jatuh_tempo
+                                    'text-red-600 bg-red-50 border-red-100': selectedSdb
+                                        ?.status === 'lewat_jatuh_tempo',
+                                    'text-yellow-700 bg-yellow-50 border-yellow-100': selectedSdb
+                                        ?.status === 'akan_jatuh_tempo',
+                                    'text-gray-900': selectedSdb?.status === 'terisi'
                                 }">
-
-                                {{-- Tanggal Jatuh Tempo --}}
                                 <span x-text="formatDate(selectedSdb?.tanggal_jatuh_tempo)"></span>
-
-                                {{-- ========================================================== --}}
-                                {{-- BARU: Teks sisa hari yang dinamis dan lebih cerdas --}}
-                                {{-- ========================================================== --}}
-                                <span class="text-xs font-medium"
+                                <span class="text-xs font-bold px-2 py-1 rounded-md bg-white/50"
                                     x-text="getExpiryText(selectedSdb.status, selectedSdb.days_until_expiry)">
                                 </span>
-                                {{-- ========================================================== --}}
-
                             </div>
 
-                            {{-- Input saat dalam mode edit --}}
                             <div x-show="editMode">
                                 <input type="date" x-model="formData.tanggal_jatuh_tempo"
-                                    class="w-full rounded-lg border-gray-300 shadow-sm bg-gray-100 cursor-not-allowed"
+                                    class="w-full rounded-xl border-gray-300 shadow-sm bg-gray-100 cursor-not-allowed text-gray-500"
                                     readonly>
-                                <p class="text-xs text-gray-500 mt-2">
-                                    Tanggal jatuh tempo otomatis dihitung 1 tahun dari tanggal sewa.
+                                <p class="text-xs text-gray-400 mt-2 italic">
+                                    *Jatuh tempo otomatis 1 tahun setelah sewa.
                                 </p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {{-- Tombol Aksi di Footer --}}
-                <div class="pt-6 border-t border-gray-200">
+                {{-- TOMBOL AKSI (FOOTER) --}}
+                <div class="pt-6 border-t border-gray-100">
+
+                    {{-- Mode Normal --}}
                     <div x-show="!editMode" class="space-y-3">
 
-                        {{-- Tombol untuk SDB Kosong --}}
+                        {{-- 1. BUTTON UNTUK SDB KOSONG --}}
                         <button @click="editMode = true; initFormData()" x-show="selectedSdb?.status === 'kosong'"
-                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center shadow-lg hover:shadow-xl">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center group">
+                            <svg class="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                             </svg>
-                            Tambah Penyewa
+                            Tambah Penyewa Baru
                         </button>
 
-                        {{-- Tombol untuk Status Terisi (Normal) --}}
+                        {{-- 2. BUTTONS UTAMA (JIKA TERISI) --}}
+                        <div x-show="selectedSdb?.status !== 'kosong'" class="grid grid-cols-2 gap-3">
+                            {{-- Catat Kunjungan (Kiri) --}}
+                            <button @click="openVisitModal()"
+                                class="col-span-1 bg-white border-2 border-blue-50 text-blue-600 hover:border-blue-200 hover:bg-blue-50 font-semibold py-3 rounded-xl transition-colors flex flex-col items-center justify-center h-20 shadow-sm">
+                                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                    </path>
+                                </svg>
+                                <span class="text-xs">Catat Kunjungan</span>
+                            </button>
+
+                            {{-- Lihat History (Kanan) --}}
+                            <button @click="openHistoryModal()"
+                                class="col-span-1 bg-white border-2 border-gray-100 text-gray-600 hover:border-gray-300 hover:bg-gray-50 font-semibold py-3 rounded-xl transition-colors flex flex-col items-center justify-center h-20 shadow-sm">
+                                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <span class="text-xs">Lihat Riwayat</span>
+                            </button>
+                        </div>
+
+                        {{-- 3. BUTTONS OPERASIONAL (EDIT/PERPANJANG/AKHIRI) --}}
+
+                        {{-- Tombol untuk STATUS NORMAL (Terisi) --}}
                         <button @click="editMode = true; initFormData()" x-show="selectedSdb?.status === 'terisi'"
                             class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center shadow-lg hover:shadow-xl">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -202,35 +207,15 @@
                                     d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
                                 </path>
                             </svg>
-                            Edit Data
+                            Edit Data Sewa
                         </button>
 
-                        {{-- Grup Tombol untuk AKAN Jatuh Tempo --}}
-                        <div x-show="selectedSdb?.status === 'akan_jatuh_tempo'" class="flex items-stretch gap-2">
-                            {{-- Tombol Perpanjang Sewa (Fleksibel) --}}
-                            <button @click="extendRental()"
-                                class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center shadow-lg hover:shadow-xl">
-                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                                Perpanjang Sewa
-                            </button>
-                            {{-- Tombol Edit (Kotak Adaptif) --}}
-                            <button @click="editMode = true; initFormData()"
-                                class="bg-blue-600 hover:bg-blue-700 text-white font-semibold p-3 rounded-xl transition-colors flex items-center justify-center shadow-lg hover:shadow-xl flex-shrink-0 aspect-square"
-                                title="Edit Data">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
-                                    </path>
-                                </svg>
-                            </button>
-                        </div>
-
-                        {{-- Tombol untuk LEWAT Jatuh Tempo --}}
-                        <button @click="extendRental()" x-show="selectedSdb?.status === 'lewat_jatuh_tempo'"
-                            class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center shadow-lg hover:shadow-xl">
+                        {{-- Tombol untuk STATUS WARNING (Akan/Lewat Jatuh Tempo) --}}
+                        <button @click="extendRental()"
+                            x-show="['akan_jatuh_tempo', 'lewat_jatuh_tempo'].includes(selectedSdb?.status)"
+                            class="w-full text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center shadow-lg hover:shadow-xl"
+                            :class="selectedSdb?.status === 'lewat_jatuh_tempo' ? 'bg-red-600 hover:bg-red-700' :
+                                'bg-yellow-500 hover:bg-yellow-600'">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -238,7 +223,7 @@
                             Perpanjang Sewa
                         </button>
 
-                        {{-- Tombol Akhiri Sewa (Tampil untuk semua status terisi) --}}
+                        {{-- Tombol AKHIRI SEWA (Selalu ada jika ada nasabah) --}}
                         <button @click="endRental()" x-show="selectedSdb?.nama_nasabah"
                             class="w-full bg-red-100 text-red-700 hover:bg-red-200 font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center shadow-lg hover:shadow-xl">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -248,18 +233,36 @@
                             </svg>
                             Akhiri Sewa
                         </button>
+
+                        {{-- Tombol LIHAT RIWAYAT (Khusus Status Kosong - agar tetap bisa cek history) --}}
+                        {{-- <button @click="openHistoryModal()" x-show="selectedSdb?.status === 'kosong'"
+                            class="w-full bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 font-medium py-2 px-4 rounded-xl transition-colors text-sm flex items-center justify-center">
+                            Lihat Arsip Riwayat SDB Ini
+                        </button> --}}
+
+                        <button @click="openHistoryModal()" x-show="selectedSdb?.status === 'kosong'"
+                            class="w-full flex items-center justify-center p-3 mb-3 rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors border border-gray-200 text-sm font-medium">
+                            <svg class="w-5 h-5 mr-2 text-gray-400" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Lihat Arsip Riwayat SDB
+                        </button>
+
+
                     </div>
 
+                    {{-- Mode Edit --}}
                     <div x-show="editMode" class="flex items-center gap-3">
                         <button @click="saveData()"
-                            class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center shadow-lg hover:shadow-xl"><svg
-                                class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M5 13l4 4L19 7">
-                                </path>
-                            </svg>Simpan</button>
+                            class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-xl transition-colors shadow-lg shadow-green-500/30">
+                            Simpan
+                        </button>
                         <button @click="cancelEdit()"
-                            class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-4 rounded-xl transition-colors">Batal</button>
+                            class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-4 rounded-xl transition-colors">
+                            Batal
+                        </button>
                     </div>
                 </div>
             </div>

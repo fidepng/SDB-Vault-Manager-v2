@@ -154,4 +154,36 @@ class SdbController extends Controller
         $sdbUnits = SdbUnit::needsAttention()->orderBy('tanggal_jatuh_tempo')->get();
         return response()->json(['success' => true, 'data' => SdbUnitResource::collection($sdbUnits)]);
     }
+
+    /**
+     * Mengambil data history dan kunjungan untuk ditampilkan di Modal via AJAX/Fetch.
+     */
+    public function getHistory(SdbUnit $sdbUnit)
+    {
+        // 1. Ambil history masa lalu dari database
+        $rentalHistories = $sdbUnit->rentalHistories()->latest()->get();
+        $visits = $sdbUnit->visits()->with('petugas')->latest()->get();
+
+        // 2. PERBAIKAN: Jika Unit sedang terisi, masukkan data aktif ke tumpukan history paling atas
+        if ($sdbUnit->nama_nasabah) {
+            $activeSession = [
+                'id' => 'active', // ID dummy
+                'nama_nasabah' => $sdbUnit->nama_nasabah,
+                'nomor_sdb' => $sdbUnit->nomor_sdb,
+                'tanggal_mulai' => $sdbUnit->tanggal_sewa,
+                'tanggal_berakhir' => $sdbUnit->tanggal_jatuh_tempo, // Masih berjalan
+                'status_akhir' => 'SEDANG AKTIF', // Status khusus untuk pembeda UI
+                'catatan' => 'Masa sewa sedang berjalan saat ini.',
+            ];
+
+            // Gabungkan: Data Aktif + Data History Lama
+            // Kita pakai prepend agar muncul paling atas
+            $rentalHistories->prepend($activeSession);
+        }
+
+        return response()->json([
+            'rental_histories' => $rentalHistories,
+            'visits' => $visits,
+        ]);
+    }
 }

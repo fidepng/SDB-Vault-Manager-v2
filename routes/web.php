@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SdbController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\SdbVisitController; // <-- Jangan lupa import ini di atas
 
 Route::get('/', function () {
     return redirect('/dashboard');
@@ -28,6 +29,14 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/sdb-filtered', [SdbController::class, 'getFilteredData'])->name('sdb.filtered');
     Route::post('/sdb/{sdbUnit}/extend-rental', [SdbController::class, 'extendRental'])->name('sdb.extend-rental');
+
+    // 1. Route untuk mencatat kunjungan
+    Route::post('/sdb/{sdbUnit}/visit', [SdbVisitController::class, 'store'])
+        ->name('sdb.visit.store');
+
+    // 2. Route untuk mengambil data history (JSON untuk Modal)
+    Route::get('/sdb/{sdbUnit}/history', [SdbController::class, 'getHistory'])
+        ->name('sdb.history.get');
 });
 
 require __DIR__ . '/auth.php';

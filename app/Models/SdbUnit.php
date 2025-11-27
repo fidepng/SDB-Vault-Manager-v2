@@ -2,9 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\SdbVisit;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class SdbUnit extends Model
 {
@@ -312,5 +313,14 @@ class SdbUnit extends Model
             'tanggal_sewa.before_or_equal' => 'Tanggal sewa tidak boleh lebih dari hari ini',
             'tanggal_jatuh_tempo.after' => 'Tanggal jatuh tempo harus setelah tanggal sewa'
         ];
+    }
+    public function rentalHistories()
+    {
+        return $this->hasMany(SdbRentalHistory::class);
+    }
+
+    public function visits()
+    {
+        return $this->hasMany(SdbVisit::class);
     }
 }

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\SdbUnit;
 use App\Models\SdbLog;
+use App\Models\SdbRentalHistory; // <-- BARU: Import Model History
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -35,6 +36,7 @@ class SdbUnitService
 
   /**
    * Mengakhiri masa sewa sebuah unit SDB.
+   * Logic Update: Data WAJIB disalin ke sdb_rental_histories sebelum dihapus.
    */
   public function endRental(SdbUnit $sdbUnit): SdbUnit
   {
@@ -43,13 +45,39 @@ class SdbUnitService
     }
 
     DB::transaction(function () use ($sdbUnit) {
+      // 1. Snapshot data ke tabel History (Best Practice)
+      $mulai = Carbon::parse($sdbUnit->tanggal_sewa);
+      $akhir = Carbon::parse($sdbUnit->tanggal_jatuh_tempo);
+
+      // Hitung durasi dalam tahun (pembulatan ke atas jika perlu, atau floor)
+      // Di sini kita ambil selisih tahun, minimal 1.
+      $durasi = $mulai->diffInYears($akhir);
+      if ($durasi < 1) $durasi = 1;
+
+      SdbRentalHistory::create([
+        'sdb_unit_id'    => $sdbUnit->id,
+        'nomor_sdb'      => $sdbUnit->nomor_sdb,
+        'nama_nasabah'   => $sdbUnit->nama_nasabah,
+        'tanggal_mulai'  => $sdbUnit->tanggal_sewa,
+
+        // PERBAIKAN: Gunakan 'now()' agar tanggal berakhir sesuai realita (hari ini),
+        // bukan tanggal jatuh tempo kontrak.
+        'tanggal_berakhir' => now()->toDateString(),
+
+        'durasi_tahun'   => $durasi,
+        'status_akhir'   => 'selesai',
+        'catatan'        => 'Sewa diakhiri lebih awal/sesuai permintaan',
+      ]);
+
+      // 2. Buat Log Audit
       $nama_nasabah = $sdbUnit->nama_nasabah;
       $this->createLog(
         $sdbUnit,
         'SEWA_BERAKHIR',
-        "Sewa SDB {$sdbUnit->nomor_sdb} berakhir untuk {$nama_nasabah}"
+        "Sewa SDB {$sdbUnit->nomor_sdb} berakhir untuk {$nama_nasabah} (Data diarsipkan ke History)"
       );
 
+      // 3. Bersihkan Unit
       $sdbUnit->update(['nama_nasabah' => null, 'tanggal_sewa' => null, 'tanggal_jatuh_tempo' => null]);
     });
 
@@ -90,7 +118,7 @@ class SdbUnitService
     return $sdbUnit->fresh();
   }
 
-  // --- METODE HELPER YANG DIPINDAHKAN ---
+  // --- METODE HELPER ---
 
   public function trackAndLogChanges(SdbUnit $sdbUnit, array $oldData, array $newData)
   {
