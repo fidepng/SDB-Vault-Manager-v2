@@ -1,8 +1,9 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\SdbController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\SdbController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\SdbVisitController; // <-- Jangan lupa import ini di atas
 
 Route::get('/', function () {
