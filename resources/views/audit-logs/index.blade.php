@@ -180,16 +180,65 @@
                                             </span>
                                         </td>
 
-                                        {{-- Kolom Deskripsi --}}
-                                        <td class="px-6 py-4">
-                                            <div
-                                                class="text-sm text-gray-600 leading-relaxed max-w-xs truncate hover:whitespace-normal hover:overflow-visible hover:relative hover:z-10 hover:bg-white transition-all">
-                                                {{ $log->deskripsi }}
+                                        {{-- Kolom Deskripsi (SMART RENDERER) --}}
+                                        <td class="px-6 py-4 w-full">
+                                            <div class="text-sm text-gray-600">
+
+                                                {{-- Cek apakah data berformat JSON khusus kita? --}}
+                                                @if (Str::startsWith($log->deskripsi, 'JSON_DATA:'))
+                                                    @php
+                                                        $jsonData = json_decode(
+                                                            Str::after($log->deskripsi, 'JSON_DATA:'),
+                                                            true,
+                                                        );
+                                                    @endphp
+
+                                                    @if (is_array($jsonData))
+                                                        <div class="flex flex-col gap-2">
+                                                            @foreach ($jsonData as $change)
+                                                                <div
+                                                                    class="flex items-center text-xs bg-gray-50 p-2 rounded border border-gray-100">
+                                                                    <span
+                                                                        class="font-bold text-gray-700 w-24">{{ $change['field'] }}:</span>
+
+                                                                    {{-- Nilai Lama (Merah & Coret) --}}
+                                                                    <span
+                                                                        class="text-red-500 line-through mr-2 bg-red-50 px-1 rounded">
+                                                                        {{ $change['old'] }}
+                                                                    </span>
+
+                                                                    <svg class="w-3 h-3 text-gray-400 mx-1"
+                                                                        fill="none" stroke="currentColor"
+                                                                        viewBox="0 0 24 24">
+                                                                        <path stroke-linecap="round"
+                                                                            stroke-linejoin="round" stroke-width="2"
+                                                                            d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                                                                    </svg>
+
+                                                                    {{-- Nilai Baru (Hijau & Bold) --}}
+                                                                    <span
+                                                                        class="text-green-600 font-bold bg-green-50 px-1 rounded">
+                                                                        {{ $change['new'] }}
+                                                                    </span>
+                                                                </div>
+                                                            @endforeach
+                                                        </div>
+                                                    @else
+                                                        {{-- Fallback jika JSON rusak --}}
+                                                        {{ str_replace('JSON_DATA:', '', $log->deskripsi) }}
+                                                    @endif
+                                                @else
+                                                    {{-- Format Lama (Teks Biasa) --}}
+                                                    {{ $log->deskripsi }}
+                                                @endif
+
                                                 @if ($log->sdb_unit_id)
-                                                    <a href="#"
-                                                        class="inline-flex items-center text-blue-500 hover:underline text-xs font-bold ml-1 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
-                                                        SDB {{ $log->sdbUnit->nomor_sdb ?? '?' }}
-                                                    </a>
+                                                    <div class="mt-1">
+                                                        <a href="#"
+                                                            class="inline-flex items-center text-blue-500 hover:underline text-xs font-bold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+                                                            Ref: SDB {{ $log->sdbUnit->nomor_sdb ?? '?' }}
+                                                        </a>
+                                                    </div>
                                                 @endif
                                             </div>
                                         </td>

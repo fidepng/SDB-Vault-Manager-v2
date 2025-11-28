@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Models\SdbUnit;
-use App\Models\SdbLog;
-use App\Models\SdbRentalHistory; // <-- BARU: Import Model History
+use App\Models\SdbRentalHistory;
+use App\Services\SdbLogService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -12,23 +12,42 @@ use Illuminate\Validation\ValidationException;
 class SdbUnitService
 {
   /**
-   * Memproses pembaruan data penyewa atau penambahan penyewa baru.
+   * Memproses pembaruan data penyewa (KOREKSI DATA / EDIT).
+   */
+  /**
+   * Memproses pembaruan data penyewa (Bisa SEWA BARU atau KOREKSI DATA).
    */
   public function updateTenant(SdbUnit $sdbUnit, array $validatedData): SdbUnit
   {
+    // Validasi
     if (!empty($validatedData['nama_nasabah']) && empty($validatedData['tanggal_sewa'])) {
-      throw ValidationException::withMessages(['tanggal_sewa' => 'Tanggal sewa wajib diisi jika ada nama nasabah']);
+      throw ValidationException::withMessages(['tanggal_sewa' => 'Tanggal sewa wajib diisi.']);
     }
 
+    // Auto-Calculate Jatuh Tempo (Aturan 1 Tahun)
     if (!empty($validatedData['tanggal_sewa'])) {
-      $validatedData['tanggal_jatuh_tempo'] = Carbon::parse($validatedData['tanggal_sewa'])->addYear()->toDateString();
+      if (empty($validatedData['tanggal_jatuh_tempo'])) {
+        $validatedData['tanggal_jatuh_tempo'] = Carbon::parse($validatedData['tanggal_sewa'])
+          ->addYear()
+          ->toDateString();
+      }
     }
 
     $oldData = $sdbUnit->toArray();
 
-    DB::transaction(function () use ($sdbUnit, $validatedData, $oldData) {
+    // [LOGIC BARU] Tentukan Jenis Kegiatan
+    $activityType = 'EDIT_DATA'; // Default: Koreksi Data
+
+    // Cek: Apakah sebelumnya kosong? Jika ya, berarti ini Sewa Baru.
+    if (empty($oldData['nama_nasabah']) && !empty($validatedData['nama_nasabah'])) {
+      $activityType = 'PENYEWAAN_BARU';
+    }
+
+    DB::transaction(function () use ($sdbUnit, $validatedData, $oldData, $activityType) {
       $sdbUnit->update($validatedData);
-      $this->trackAndLogChanges($sdbUnit, $oldData, $validatedData);
+
+      // Gunakan activityType hasil deteksi di atas
+      $this->trackAndLogChanges($sdbUnit, $oldData, $validatedData, $activityType);
     });
 
     return $sdbUnit->fresh();
@@ -36,7 +55,6 @@ class SdbUnitService
 
   /**
    * Mengakhiri masa sewa sebuah unit SDB.
-   * Logic Update: Data WAJIB disalin ke sdb_rental_histories sebelum dihapus.
    */
   public function endRental(SdbUnit $sdbUnit): SdbUnit
   {
@@ -45,12 +63,10 @@ class SdbUnitService
     }
 
     DB::transaction(function () use ($sdbUnit) {
-      // 1. Snapshot data ke tabel History (Best Practice)
+      // Snapshot ke History
       $mulai = Carbon::parse($sdbUnit->tanggal_sewa);
       $akhir = Carbon::parse($sdbUnit->tanggal_jatuh_tempo);
 
-      // Hitung durasi dalam tahun (pembulatan ke atas jika perlu, atau floor)
-      // Di sini kita ambil selisih tahun, minimal 1.
       $durasi = $mulai->diffInYears($akhir);
       if ($durasi < 1) $durasi = 1;
 
@@ -59,25 +75,20 @@ class SdbUnitService
         'nomor_sdb'      => $sdbUnit->nomor_sdb,
         'nama_nasabah'   => $sdbUnit->nama_nasabah,
         'tanggal_mulai'  => $sdbUnit->tanggal_sewa,
-
-        // PERBAIKAN: Gunakan 'now()' agar tanggal berakhir sesuai realita (hari ini),
-        // bukan tanggal jatuh tempo kontrak.
         'tanggal_berakhir' => now()->toDateString(),
-
         'durasi_tahun'   => $durasi,
         'status_akhir'   => 'selesai',
-        'catatan'        => 'Sewa diakhiri lebih awal/sesuai permintaan',
+        'catatan'        => 'Sewa diakhiri melalui sistem',
       ]);
 
-      // 2. Buat Log Audit
-      $nama_nasabah = $sdbUnit->nama_nasabah;
+      // Log Audit
       $this->createLog(
         $sdbUnit,
         'SEWA_BERAKHIR',
-        "Sewa SDB {$sdbUnit->nomor_sdb} berakhir untuk {$nama_nasabah} (Data diarsipkan ke History)"
+        "Sewa SDB {$sdbUnit->nomor_sdb} berakhir untuk {$sdbUnit->nama_nasabah}"
       );
 
-      // 3. Bersihkan Unit
+      // Bersihkan Unit
       $sdbUnit->update(['nama_nasabah' => null, 'tanggal_sewa' => null, 'tanggal_jatuh_tempo' => null]);
     });
 
@@ -90,59 +101,117 @@ class SdbUnitService
   public function extendRental(SdbUnit $sdbUnit, array $validatedData): SdbUnit
   {
     if (!$sdbUnit->is_rented) {
-      throw new \Exception('SDB ini dalam keadaan kosong dan tidak bisa diperpanjang.', 400);
+      throw new \Exception('SDB ini dalam keadaan kosong.', 400);
     }
 
     DB::transaction(function () use ($sdbUnit, $validatedData) {
-      $oldJatuhTempo = Carbon::parse($sdbUnit->tanggal_jatuh_tempo)->isoFormat('D MMM YYYY');
+      // Data Lama
+      $oldMulai = Carbon::parse($sdbUnit->tanggal_sewa);
+      $oldJatuhTempo = Carbon::parse($sdbUnit->tanggal_jatuh_tempo);
       $oldName = $sdbUnit->nama_nasabah;
+      $today = Carbon::now();
 
-      $newSewaDate = Carbon::parse($validatedData['tanggal_mulai_baru']);
-      $newJatuhTempoDate = $newSewaDate->copy()->addYear();
+      // Logic Continuity vs Reset
+      if ($today->lte($oldJatuhTempo)) {
+        $newStart = $oldJatuhTempo->copy()->addDay(); // H+1
+        $catatanHistory = 'Perpanjangan tepat waktu (Periode bersambung)';
+      } else {
+        $newStart = $today; // Reset hari ini
+        $gap = $oldJatuhTempo->diffInDays($today);
+        $catatanHistory = 'Perpanjangan terlambat (Gap waktu: ' . $gap . ' hari)';
+      }
+
+      $newEnd = $newStart->copy()->addYear()->subDay();
+
+      // Simpan History Lama
+      $durasiLama = $oldMulai->diffInYears($oldJatuhTempo);
+      if ($durasiLama < 1) $durasiLama = 1;
+
+      SdbRentalHistory::create([
+        'sdb_unit_id'    => $sdbUnit->id,
+        'nomor_sdb'      => $sdbUnit->nomor_sdb,
+        'nama_nasabah'   => $oldName,
+        'tanggal_mulai'  => $oldMulai->toDateString(),
+        'tanggal_berakhir' => $oldJatuhTempo->toDateString(),
+        'durasi_tahun'   => $durasiLama,
+        'status_akhir'   => 'selesai',
+        'catatan'        => $catatanHistory,
+      ]);
+
+      // Update Unit
       $newName = $validatedData['nama_nasabah'];
       $nameHasChanged = $oldName !== $newName;
 
       $sdbUnit->update([
         'nama_nasabah' => $newName,
-        'tanggal_sewa' => $newSewaDate->toDateString(),
-        'tanggal_jatuh_tempo' => $newJatuhTempoDate->toDateString()
+        'tanggal_sewa' => $newStart->toDateString(),
+        'tanggal_jatuh_tempo' => $newEnd->toDateString()
       ]);
 
-      $deskripsiLog = "Periode sewa diperbarui menjadi: {$newSewaDate->isoFormat('D MMM YYYY')} - {$newJatuhTempoDate->isoFormat('D MMM YYYY')}";
+      // Log
+      $deskripsiLog = "Perpanjangan Sewa. Periode Baru: {$newStart->isoFormat('D MMM YYYY')} - {$newEnd->isoFormat('D MMM YYYY')}";
       if ($nameHasChanged) {
-        $deskripsiLog .= " (Nama nasabah diubah dari '{$oldName}' menjadi '{$newName}')";
+        $deskripsiLog .= " (Nama nasabah dikoreksi: '{$oldName}' -> '{$newName}')";
       }
+
       $this->createLog($sdbUnit, 'PERPANJANGAN', $deskripsiLog);
     });
 
     return $sdbUnit->fresh();
   }
 
-  // --- METODE HELPER ---
+    // --- METODE HELPER ---
 
-  public function trackAndLogChanges(SdbUnit $sdbUnit, array $oldData, array $newData)
+  /**
+   * Helper untuk melacak perubahan field dan mencatat log.
+   * [PERBAIKAN]: Menambahkan parameter $forcedActivity untuk override otomatisasi.
+   */
+  /**
+   * Helper untuk melacak perubahan field dan mencatat log (JSON FORMAT).
+   */
+  public function trackAndLogChanges(SdbUnit $sdbUnit, array $oldData, array $newData, ?string $forcedActivity = null)
   {
     $changes = [];
 
+    // Cek Nama
     if (($oldData['nama_nasabah'] ?? null) !== ($newData['nama_nasabah'] ?? null)) {
-      $changes[] = "Nama nasabah: " . ($oldData['nama_nasabah'] ?? 'Kosong') . " → " . ($newData['nama_nasabah'] ?? 'Kosong');
+      $changes[] = [
+        'field' => 'Nama Nasabah',
+        'old'   => $oldData['nama_nasabah'] ?? '-',
+        'new'   => $newData['nama_nasabah'] ?? '-',
+      ];
     }
 
+    // Cek Tanggal Sewa
     if (($oldData['tanggal_sewa'] ?? null) !== ($newData['tanggal_sewa'] ?? null)) {
-      $oldDate = $oldData['tanggal_sewa'] ? Carbon::parse($oldData['tanggal_sewa'])->format('d/m/Y') : 'Tidak ada';
-      $newDate = $newData['tanggal_sewa'] ? Carbon::parse($newData['tanggal_sewa'])->format('d/m/Y') : 'Tidak ada';
-      $changes[] = "Tanggal sewa: {$oldDate} → {$newDate}";
+      $oldDate = $oldData['tanggal_sewa'] ? Carbon::parse($oldData['tanggal_sewa'])->format('d M Y') : '-';
+      $newDate = $newData['tanggal_sewa'] ? Carbon::parse($newData['tanggal_sewa'])->format('d M Y') : '-';
+      $changes[] = [
+        'field' => 'Tanggal Sewa',
+        'old'   => $oldDate,
+        'new'   => $newDate,
+      ];
     }
 
+    // Cek Jatuh Tempo
     if (($oldData['tanggal_jatuh_tempo'] ?? null) !== ($newData['tanggal_jatuh_tempo'] ?? null)) {
-      $oldDate = $oldData['tanggal_jatuh_tempo'] ? Carbon::parse($oldData['tanggal_jatuh_tempo'])->format('d/m/Y') : 'Tidak ada';
-      $newDate = $newData['tanggal_jatuh_tempo'] ? Carbon::parse($newData['tanggal_jatuh_tempo'])->format('d/m/Y') : 'Tidak ada';
-      $changes[] = "Jatuh tempo: {$oldDate} → {$newDate}";
+      $oldDate = $oldData['tanggal_jatuh_tempo'] ? Carbon::parse($oldData['tanggal_jatuh_tempo'])->format('d M Y') : '-';
+      $newDate = $newData['tanggal_jatuh_tempo'] ? Carbon::parse($newData['tanggal_jatuh_tempo'])->format('d M Y') : '-';
+      $changes[] = [
+        'field' => 'Jatuh Tempo',
+        'old'   => $oldDate,
+        'new'   => $newDate,
+      ];
     }
 
     if (!empty($changes)) {
-      $kegiatan = $this->determineActivityType($oldData, $newData);
-      $this->createLog($sdbUnit, $kegiatan, implode(', ', $changes));
+      $kegiatan = $forcedActivity ?? $this->determineActivityType($oldData, $newData);
+
+      // SIMPAN SEBAGAI JSON STRING
+      // Tambahkan flag khusus 'JSON_DATA:' agar view tahu ini format baru
+      $deskripsi = 'JSON_DATA:' . json_encode($changes);
+
+      $this->createLog($sdbUnit, $kegiatan, $deskripsi);
     }
   }
 
@@ -154,6 +223,7 @@ class SdbUnitService
     if ($wasEmpty && !$nowEmpty) return 'PENYEWAAN_BARU';
     if (!$wasEmpty && $nowEmpty) return 'SEWA_BERAKHIR';
 
+    // Logika penebak ini hanya jalan jika tidak ada $forcedActivity
     if (!$wasEmpty && !$nowEmpty) {
       if (($oldData['tanggal_jatuh_tempo'] ?? null) !== ($newData['tanggal_jatuh_tempo'] ?? null)) {
         return 'PERPANJANGAN';
@@ -165,11 +235,10 @@ class SdbUnitService
 
   public function createLog(SdbUnit $sdbUnit, string $kegiatan, string $deskripsi)
   {
-    SdbLog::create([
-      'sdb_unit_id' => $sdbUnit->id,
-      'kegiatan' => $kegiatan,
-      'deskripsi' => $deskripsi,
-      'timestamp' => now()
-    ]);
+    SdbLogService::record(
+      $kegiatan,
+      $deskripsi,
+      $sdbUnit->id
+    );
   }
 }

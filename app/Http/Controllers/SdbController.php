@@ -160,24 +160,39 @@ class SdbController extends Controller
      */
     public function getHistory(SdbUnit $sdbUnit)
     {
-        // 1. Ambil history masa lalu dari database
         $rentalHistories = $sdbUnit->rentalHistories()->latest()->get();
         $visits = $sdbUnit->visits()->with('petugas')->latest()->get();
 
-        // 2. PERBAIKAN: Jika Unit sedang terisi, masukkan data aktif ke tumpukan history paling atas
+        // LOGIC STATUS DINAMIS
         if ($sdbUnit->nama_nasabah) {
+            $jatuhTempo = \Carbon\Carbon::parse($sdbUnit->tanggal_jatuh_tempo);
+            $now = now(); // Mengikuti timezone Asia/Makassar yang sudah diset
+
+            // Tentukan status berdasarkan tanggal
+            if ($now->gt($jatuhTempo)) {
+                // Jika hari ini LEBIH BESAR dari jatuh tempo
+                $statusStr = 'LEWAT JATUH TEMPO';
+                $catatanStr = 'Nasabah menunggak / belum memperpanjang.';
+            } elseif ($now->diffInDays($jatuhTempo, false) <= 30) {
+                // Jika sisa waktu <= 30 hari
+                $statusStr = 'AKAN JATUH TEMPO';
+                $catatanStr = 'Perlu diingatkan untuk perpanjang.';
+            } else {
+                // Masih aman
+                $statusStr = 'SEDANG AKTIF';
+                $catatanStr = 'Masa sewa berjalan normal.';
+            }
+
             $activeSession = [
-                'id' => 'active', // ID dummy
-                'nama_nasabah' => $sdbUnit->nama_nasabah,
+                'id' => 'active',
+                'nama_nasabah' => $sdbUnit->nama_nasabah . ' (Saat Ini)',
                 'nomor_sdb' => $sdbUnit->nomor_sdb,
                 'tanggal_mulai' => $sdbUnit->tanggal_sewa,
-                'tanggal_berakhir' => $sdbUnit->tanggal_jatuh_tempo, // Masih berjalan
-                'status_akhir' => 'SEDANG AKTIF', // Status khusus untuk pembeda UI
-                'catatan' => 'Masa sewa sedang berjalan saat ini.',
+                'tanggal_berakhir' => $sdbUnit->tanggal_jatuh_tempo,
+                'status_akhir' => $statusStr, // <--- Hasil Logic Di sini
+                'catatan' => $catatanStr,
             ];
 
-            // Gabungkan: Data Aktif + Data History Lama
-            // Kita pakai prepend agar muncul paling atas
             $rentalHistories->prepend($activeSession);
         }
 
