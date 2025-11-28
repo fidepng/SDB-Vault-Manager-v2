@@ -9,6 +9,10 @@ class SdbRentalHistory extends Model
 {
   use HasFactory;
 
+  // Pastikan nama tabel benar
+  protected $table = 'sdb_rental_histories';
+
+  // PENTING: Semua kolom ini harus ada agar tidak error 500 saat create
   protected $fillable = [
     'sdb_unit_id',
     'nomor_sdb',
@@ -20,9 +24,8 @@ class SdbRentalHistory extends Model
     'catatan',
   ];
 
-  // Relasi ke Unit SDB (optional, karena unit bisa saja null jika dihapus)
-  public function sdbUnit()
-  {
-    return $this->belongsTo(SdbUnit::class);
-  }
+  protected $casts = [
+    'tanggal_mulai' => 'date',
+    'tanggal_berakhir' => 'date',
+  ];
 }

@@ -18,38 +18,76 @@
             </div>
 
             {{-- ======================================================================== --}}
-            {{-- MODAL 1: PERPANJANG SEWA (Existing) --}}
+            {{-- MODAL 1: PERPANJANG SEWA (UPDATED: SECURE & AUDITABLE) --}}
             {{-- ======================================================================== --}}
             <div x-show="isExtendModalOpen"
                 class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" x-cloak>
                 <div @click.outside="isExtendModalOpen = false"
                     class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md transform transition-all scale-100">
-                    <h3 class="text-xl font-bold text-gray-900 mb-2">Perpanjang Masa Sewa</h3>
-                    <p class="text-sm text-gray-500 mb-6">Update data untuk SDB <strong
+
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold text-gray-900">Perpanjang Masa Sewa</h3>
+                        <button @click="isExtendModalOpen = false" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <p class="text-sm text-gray-500 mb-6">Update data kontrak untuk SDB <strong class="text-blue-600"
                             x-text="selectedSdb?.nomor_sdb"></strong>.</p>
 
-                    <div class="space-y-4">
+                    <div class="space-y-5">
+                        {{-- Nama Nasabah (LOCKED) --}}
                         <div>
-                            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Nama
-                                Nasabah</label>
-                            <input type="text" x-model="modalFormData.nama_nasabah"
-                                class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                                Nama Nasabah
+                            </label>
+                            <input type="text" x-model="modalFormData.nama_nasabah" disabled
+                                class="w-full rounded-lg border-gray-300 bg-gray-100 text-gray-500 shadow-sm cursor-not-allowed focus:ring-0">
+                            <p class="text-[10px] text-red-500 mt-1 flex items-center">
+                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                                    </path>
+                                </svg>
+                                Nama tidak dapat diubah saat perpanjangan.
+                            </p>
                         </div>
+
+                        {{-- Tanggal Mulai (AUTO-SUGGEST) --}}
                         <div>
-                            <label
-                                class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Tanggal
-                                Mulai Baru</label>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                                Tanggal Mulai Perpanjangan
+                            </label>
                             <input type="date" x-model="modalFormData.tanggal_mulai_baru"
                                 class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <p class="text-[10px] text-blue-600 mt-1">
+                                *Sistem otomatis menyarankan H+1 dari jatuh tempo terakhir.
+                            </p>
                         </div>
                     </div>
 
-                    <div class="flex justify-end gap-3 mt-8">
+                    <div class="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-100">
                         <button @click="isExtendModalOpen = false"
-                            class="px-5 py-2.5 rounded-xl text-gray-600 font-medium hover:bg-gray-100 transition-colors">Batal</button>
+                            class="px-5 py-2.5 rounded-xl text-gray-600 font-medium hover:bg-gray-100 transition-colors">
+                            Batal
+                        </button>
                         <button @click="submitExtendRental()"
-                            class="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all">Simpan
-                            Perubahan</button>
+                            class="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                            :disabled="isLoading">
+                            <span x-show="isLoading" class="mr-2 animate-spin">
+                                <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10"
+                                        stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                    </path>
+                                </svg>
+                            </span>
+                            Simpan Perubahan
+                        </button>
                     </div>
                 </div>
             </div>
@@ -107,7 +145,8 @@
                                 placeholder="Sesuai KTP / Surat Kuasa">
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Waktu
+                            <label
+                                class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Waktu
                                 Kunjungan</label>
                             <input type="datetime-local" x-model="visitFormData.waktu_kunjung"
                                 class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
@@ -439,46 +478,59 @@
     </div>
 
     {{-- SCRIPT UTAMA ALPINE.JS (FINAL & STANDARDIZED) --}}
-    {{-- SCRIPT UTAMA ALPINE.JS (FIXED: Added searchAndSelect) --}}
     <script>
         function sdbManager() {
             return {
-                // --- STATE UTAMA ---
+                // =================================================================
+                // 1. DATA & STATE
+                // =================================================================
+                sdbLayouts: @json($sdbLayouts ?? []),
+                sdbDataMap: @json($sdbDataMap ?? []),
+                statistics: @json($statistics ?? []),
+
+                // COMPUTED PROPERTIES
+                get allUnits() {
+                    return Object.values(this.sdbDataMap);
+                },
+
+                get isFilterActive() {
+                    return !!this.filters.search || !!this.filters.status || !!this.filters.tipe;
+                },
+
+                // UI State
                 selectedSdb: null,
                 editMode: false,
                 isLoading: false,
+                isLoadingHistory: false,
 
-                // --- FILTER STATE ---
+                // Filter State
                 filters: {
                     search: '',
                     status: '',
                     tipe: ''
                 },
+                filteredUnits: [],
 
-                // --- DATA ---
-                sdbLayouts: @json($sdbLayouts ?? []),
-                sdbDataMap: @json($sdbDataMap ?? []),
-                allUnits: @json($allUnits ?? []),
-                filteredUnits: @json(collect($allUnits ?? [])->pluck('id')->toArray()),
-
-                // --- STATE FORM & MODAL ---
+                // =================================================================
+                // 2. FORM MODELS
+                // =================================================================
                 formData: {
                     nama_nasabah: '',
                     tanggal_sewa: '',
-                    tanggal_jatuh_tempo: ''
+                    tanggal_jatuh_tempo: '',
+                    nomor_sdb: '',
+                    tipe: ''
                 },
 
-                // Modal Perpanjang
+                // Modal States
                 isExtendModalOpen: false,
                 modalFormData: {
                     nama_nasabah: '',
                     tanggal_mulai_baru: ''
                 },
 
-                // Modal Akhiri Sewa
                 isEndRentalModalOpen: false,
 
-                // --- STATE FASE 2 (HISTORY & VISIT) ---
                 isVisitModalOpen: false,
                 visitFormData: {
                     nama_pengunjung: '',
@@ -487,50 +539,236 @@
                 },
 
                 isHistoryModalOpen: false,
-                isLoadingHistory: false,
-                activeHistoryTab: 'sewa',
                 historyData: {
                     rental_histories: [],
                     visits: []
                 },
+                activeHistoryTab: 'sewa',
 
-                // --- COMPUTED PROPERTIES ---
-                get isFilterActive() {
-                    return !!this.filters.search || !!this.filters.status || !!this.filters.tipe;
+                // =================================================================
+                // 3. INITIALIZATION & WATCHERS
+                // =================================================================
+                init() {
+                    this.applyFilters();
+                    window.addEventListener('sdb-data-updated', () => window.location.reload());
+
+                    // Watcher Auto-Calculate Jatuh Tempo
+                    this.$watch('formData.tanggal_sewa', (newDate) => {
+                        // Berlaku Universal (Sewa Baru & Edit) jika ada tanggal valid
+                        if (this.editMode && newDate) {
+                            try {
+                                const startDate = new Date(newDate);
+                                if (!isNaN(startDate.getTime())) {
+                                    const endDate = new Date(startDate);
+                                    endDate.setFullYear(startDate.getFullYear() + 1);
+                                    this.formData.tanggal_jatuh_tempo = endDate.toISOString().split('T')[0];
+                                }
+                            } catch (e) {
+                                console.error(e);
+                            }
+                        }
+                    });
                 },
 
-                // --- TIMEZONE HELPER (BEST PRACTICE) ---
+                // =================================================================
+                // 4. CORE HELPERS
+                // =================================================================
+
                 getLocalISOString() {
                     const now = new Date();
                     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
                     return now.toISOString().slice(0, 16);
                 },
-
                 getLocalDateString() {
                     return this.getLocalISOString().slice(0, 10);
                 },
 
-                // --- INISIALISASI ---
-                init() {
-                    this.applyFilters();
+                notify(message, type = 'success') {
+                    if (window.showNotification) window.showNotification(message, type);
+                    else alert(message);
+                },
 
-                    // Watcher: Saat tanggal sewa diubah, otomatis hitung jatuh tempo 1 tahun
-                    this.$watch('formData.tanggal_sewa', (newDate) => {
-                        this.autoCalculateDueDate(newDate);
-                    });
+                updateLocalUnitData(updatedUnit) {
+                    if (!updatedUnit) return;
+                    this.sdbDataMap[updatedUnit.nomor_sdb] = updatedUnit;
+                    if (this.selectedSdb && this.selectedSdb.id === updatedUnit.id) {
+                        this.selectedSdb = JSON.parse(JSON.stringify(updatedUnit));
+                        if (this.editMode) this.initFormData();
+                    }
+                    this.applyFilters();
+                },
+
+                // =================================================================
+                // 5. INTERACTION LOGIC
+                // =================================================================
+
+                searchAndSelect() {
+                    this.applyFilters();
+                    const keyword = this.filters.search.toLowerCase();
+                    if (!keyword) return;
+
+                    const visibleUnits = this.allUnits.filter(u => this.filteredUnits.includes(u.id));
+                    const exactMatch = visibleUnits.find(u => u.nomor_sdb.toLowerCase() === keyword);
+
+                    if (exactMatch) {
+                        this.showDetail(exactMatch.id);
+                    } else if (visibleUnits.length === 1) {
+                        this.showDetail(visibleUnits[0].id);
+                    }
+                },
+
+                showDetail(id) {
+                    const unit = this.allUnits.find(u => u.id === id);
+                    if (!unit) return;
+
+                    this.selectedSdb = JSON.parse(JSON.stringify(unit));
+                    this.editMode = false;
+                },
+
+                // [DITAMBAHKAN KEMBALI] Fungsi Clear Selection (Tombol X)
+                clearSelection() {
+                    this.selectedSdb = null;
+                    this.editMode = false;
                 },
 
                 initFormData() {
-                    const isEditing = !!this.selectedSdb?.nama_nasabah;
+                    this.editMode = true;
+
                     this.formData = {
-                        nama_nasabah: this.selectedSdb?.nama_nasabah || '',
-                        tanggal_sewa: isEditing ? this.selectedSdb.tanggal_sewa : this.getLocalDateString(),
-                        tanggal_jatuh_tempo: this.selectedSdb?.tanggal_jatuh_tempo || '',
-                        tipe: this.selectedSdb?.tipe || ''
+                        id: this.selectedSdb.id,
+                        nomor_sdb: this.selectedSdb.nomor_sdb,
+                        tipe: this.selectedSdb.tipe,
+                        nama_nasabah: this.selectedSdb.nama_nasabah || '',
+                        tanggal_sewa: '',
+                        tanggal_jatuh_tempo: ''
                     };
+
+                    if (this.selectedSdb.status === 'kosong') {
+                        this.formData.tanggal_sewa = this.getLocalDateString();
+                    } else {
+                        this.formData.tanggal_sewa = this.selectedSdb.tanggal_sewa ? this.selectedSdb.tanggal_sewa.split(
+                            'T')[0] : '';
+                        this.formData.tanggal_jatuh_tempo = this.selectedSdb.tanggal_jatuh_tempo ? this.selectedSdb
+                            .tanggal_jatuh_tempo.split('T')[0] : '';
+                    }
                 },
 
-                // --- LOGIC FASE 2 ---
+                cancelEdit() {
+                    this.editMode = false;
+                    this.showDetail(this.selectedSdb.id);
+                },
+
+                async saveData() {
+                    if (!this.formData.nama_nasabah) {
+                        this.notify('Nama Nasabah wajib diisi!', 'warning');
+                        return;
+                    }
+                    this.isLoading = true;
+
+                    let url = this.selectedSdb.status === 'kosong' ?
+                        `/sdb/${this.selectedSdb.id}/rent` :
+                        `/sdb/${this.selectedSdb.id}`;
+                    let method = this.selectedSdb.status === 'kosong' ? 'POST' : 'PUT';
+
+                    try {
+                        const response = await fetch(url, {
+                            method: method,
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                            },
+                            body: JSON.stringify(this.formData)
+                        });
+
+                        const result = await response.json();
+                        if (!response.ok) throw new Error(result.message);
+
+                        this.updateLocalUnitData(result.data);
+                        this.editMode = false;
+                        this.notify(result.message, 'success');
+
+                    } catch (e) {
+                        this.notify(e.message, 'error');
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
+                // =================================================================
+                // 6. MODAL ACTIONS
+                // =================================================================
+                extendRental() {
+                    if (!this.selectedSdb) return;
+
+                    let nextStart;
+                    if (this.selectedSdb.tanggal_jatuh_tempo) {
+                        let jt = new Date(this.selectedSdb.tanggal_jatuh_tempo);
+                        jt.setDate(jt.getDate() + 1);
+                        nextStart = jt.toISOString().split('T')[0];
+                    } else {
+                        nextStart = this.getLocalDateString();
+                    }
+
+                    this.modalFormData = {
+                        nama_nasabah: this.selectedSdb.nama_nasabah,
+                        tanggal_mulai_baru: nextStart
+                    };
+
+                    this.isExtendModalOpen = true;
+                },
+
+                async submitExtendRental() {
+                    this.isLoading = true;
+                    try {
+                        const response = await fetch(`/sdb/${this.selectedSdb.id}/extend`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                            },
+                            body: JSON.stringify(this.modalFormData)
+                        });
+                        const result = await response.json();
+                        if (!response.ok) throw new Error(result.message);
+
+                        this.updateLocalUnitData(result.data);
+                        this.isExtendModalOpen = false;
+                        this.notify(result.message, 'success');
+                    } catch (e) {
+                        this.notify(e.message, 'error');
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
+                endRental() {
+                    this.isEndRentalModalOpen = true;
+                },
+
+                async submitEndRental() {
+                    this.isLoading = true;
+                    try {
+                        const response = await fetch(`/sdb/${this.selectedSdb.id}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                            }
+                        });
+                        const result = await response.json();
+                        if (!response.ok) throw new Error(result.message);
+
+                        this.updateLocalUnitData(result.data);
+                        this.isEndRentalModalOpen = false;
+                        this.notify('Sewa berhasil diakhiri.', 'success');
+                    } catch (e) {
+                        this.notify(e.message, 'error');
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
                 openVisitModal() {
                     if (!this.selectedSdb) return;
                     this.visitFormData = {
@@ -542,31 +780,24 @@
                 },
 
                 async submitVisit() {
-                    if (!this.visitFormData.nama_pengunjung || !this.visitFormData.waktu_kunjung) {
-                        window.showNotification('Nama & Waktu wajib diisi', 'warning');
-                        return;
-                    }
                     this.isLoading = true;
                     try {
                         const response = await fetch(`/sdb/${this.selectedSdb.id}/visit`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Accept': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
-                                    'content')
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                             },
                             body: JSON.stringify(this.visitFormData)
                         });
                         if (response.ok) {
-                            window.showNotification('Kunjungan berhasil dicatat', 'success');
+                            this.notify('Kunjungan dicatat.', 'success');
                             this.isVisitModalOpen = false;
                         } else {
-                            window.showNotification('Gagal menyimpan data', 'error');
+                            this.notify('Gagal.', 'error');
                         }
                     } catch (e) {
-                        console.error(e);
-                        window.showNotification('Terjadi kesalahan sistem', 'error');
+                        this.notify('Error.', 'error');
                     } finally {
                         this.isLoading = false;
                     }
@@ -576,17 +807,15 @@
                     if (!this.selectedSdb) return;
                     this.isHistoryModalOpen = true;
                     this.isLoadingHistory = true;
-                    this.activeHistoryTab = 'sewa';
                     try {
                         const response = await fetch(`/sdb/${this.selectedSdb.id}/history`);
-                        const result = await response.json();
+                        const data = await response.json();
                         this.historyData = {
-                            rental_histories: result.rental_histories || [],
-                            visits: result.visits || []
+                            rental_histories: data.rental_histories || [],
+                            visits: data.visits || []
                         };
                     } catch (e) {
                         console.error(e);
-                        window.showNotification('Gagal memuat riwayat', 'error');
                     } finally {
                         this.isLoadingHistory = false;
                     }
@@ -594,267 +823,55 @@
 
                 closeHistoryModal() {
                     this.isHistoryModalOpen = false;
-                    this.historyData = {
-                        rental_histories: [],
-                        visits: []
+                },
+
+                // =================================================================
+                // 7. HELPER VIEW
+                // =================================================================
+                getStatusText(status) {
+                    const map = {
+                        'kosong': 'Tersedia',
+                        'terisi': 'Terisi',
+                        'akan_jatuh_tempo': 'Akan Jatuh Tempo',
+                        'lewat_jatuh_tempo': 'Lewat Jatuh Tempo'
                     };
+                    return map[status] || status;
                 },
 
-                // --- LOGIC OPERASIONAL UTAMA ---
-
-                // [RESTORED] Fungsi Auto-Select saat Enter ditekan
-                async searchAndSelect() {
-                    // 1. Pastikan filter diterapkan terbaru
-                    await this.applyFilters();
-
-                    if (this.filters.search) {
-                        const keyword = this.filters.search.toLowerCase();
-
-                        // Filter manual dari data lokal untuk mencari match
-                        // Kita cari unit yang ID-nya ada di filteredUnits
-                        const visibleUnits = this.allUnits.filter(u => this.filteredUnits.includes(u.id));
-
-                        // A. Prioritas 1: Mencari yang NOMOR SDB-nya persis sama (Exact Match)
-                        const exactMatch = visibleUnits.find(u => u.nomor_sdb.toLowerCase() === keyword);
-
-                        if (exactMatch) {
-                            this.showDetail(exactMatch.id);
-                        }
-                        // B. Prioritas 2: Jika hasil filter cuma tersisa 1, langsung pilih itu
-                        else if (visibleUnits.length === 1) {
-                            this.showDetail(visibleUnits[0].id);
-                        }
-                    }
-                },
-
-                handleEscape() {
-                    if (this.isVisitModalOpen) this.isVisitModalOpen = false;
-                    else if (this.isHistoryModalOpen) this.closeHistoryModal();
-                    else if (this.isExtendModalOpen) this.isExtendModalOpen = false;
-                    else if (this.editMode) this.cancelEdit();
-                    else if (this.selectedSdb) this.clearSelection();
-                },
-
-                autoCalculateDueDate(newDate) {
-                    // Logic: Hanya hitung otomatis jika mode Edit dan Tanggal Valid
-                    if (this.editMode && newDate) {
-                        const date = new Date(newDate);
-
-                        // Rule: Tambah 1 Tahun
-                        date.setFullYear(date.getFullYear() + 1);
-
-                        // Rule: Kurangi 1 Hari (Agar genap 1 tahun kalender, misal 1 Jan - 31 Des)
-                        // Opsional: Tergantung kebijakan bank Anda. Jika 1 Jan - 1 Jan, hapus baris ini.
-                        // date.setDate(date.getDate() - 1); 
-
-                        // Format ke YYYY-MM-DD
-                        const offset = date.getTimezoneOffset();
-                        const localDate = new Date(date.getTime() - (offset * 60 * 1000));
-                        this.formData.tanggal_jatuh_tempo = localDate.toISOString().split('T')[0];
-                    }
-                },
-
-                async applyFilters() {
-                    if (!this.filters.search) this.clearSelection();
-                    this.isLoading = true;
-                    try {
-                        const params = new URLSearchParams(this.filters).toString();
-                        const response = await fetch(`/sdb-filtered?${params}`);
-                        const data = await response.json();
-                        this.allUnits = data.units;
-                        this.filteredUnits = data.units.map(u => u.id);
-                    } catch (e) {
-                        this.applyClientSideFilters();
-                    } finally {
-                        this.isLoading = false;
-                    }
-                },
-
-                applyClientSideFilters() {
-                    let filtered = this.allUnits.filter(u => {
-                        const matchSearch = !this.filters.search || u.nomor_sdb.toLowerCase().includes(this.filters
-                            .search.toLowerCase()) || (u.nama_nasabah || '').toLowerCase().includes(this.filters
-                            .search.toLowerCase());
-                        const matchStatus = !this.filters.status || u.status === this.filters.status;
-                        const matchTipe = !this.filters.tipe || u.tipe === this.filters.tipe;
-                        return matchSearch && matchStatus && matchTipe;
-                    });
-                    this.filteredUnits = filtered.map(u => u.id);
-                },
-
-                async showDetail(unitId) {
-                    if (this.selectedSdb?.id === unitId) {
-                        this.clearSelection();
-                        return;
-                    }
-                    try {
-                        const response = await fetch(`/sdb/${unitId}`);
-                        const result = await response.json();
-                        if (result.data) this.selectedSdb = result.data;
-                        this.editMode = false;
-                    } catch (e) {
-                        console.error(e);
-                        this.clearSelection();
-                    }
-                },
-
-                clearSelection() {
-                    this.selectedSdb = null;
-                    this.editMode = false;
-                },
-
-                cancelEdit() {
-                    this.editMode = false;
-                },
-
-                validateForm() {
-                    if (!this.formData.nama_nasabah.trim()) return false;
-                    return true;
-                },
-
-                async saveData() {
-                    if (!this.validateForm()) return;
-                    this.isLoading = true;
-                    try {
-                        const response = await fetch(`/sdb/${this.selectedSdb.id}`, {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                            },
-                            body: JSON.stringify(this.formData)
-                        });
-                        const result = await response.json();
-                        if (result.success) {
-                            this.updateLocalUnitData(result.data);
-                            this.editMode = false;
-                            window.showNotification('Disimpan', 'success');
-                        }
-                    } catch (e) {
-                        console.error(e);
-                    } finally {
-                        this.isLoading = false;
-                    }
-                },
-
-                updateLocalUnitData(updatedUnit) {
-                    const idx = this.allUnits.findIndex(u => u.id === updatedUnit.id);
-                    if (idx !== -1) this.allUnits[idx] = {
-                        ...this.allUnits[idx],
-                        ...updatedUnit
-                    };
-                    if (this.selectedSdb?.id === updatedUnit.id) this.selectedSdb = {
-                        ...this.selectedSdb,
-                        ...updatedUnit
-                    };
-                    this.sdbDataMap[updatedUnit.nomor_sdb] = {
-                        ...this.sdbDataMap[updatedUnit.nomor_sdb],
-                        ...updatedUnit
-                    };
-                },
-
-                endRental() {
-                    if (this.selectedSdb?.nama_nasabah) this.isEndRentalModalOpen = true;
-                },
-
-                async submitEndRental() {
-                    this.isLoading = true;
-                    this.isEndRentalModalOpen = false;
-                    try {
-                        const response = await fetch(`/sdb/${this.selectedSdb.id}`, {
-                            method: 'DELETE',
-                            headers: {
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                            }
-                        });
-                        const result = await response.json();
-                        if (result.success) {
-                            this.updateLocalUnitData(result.data);
-                            this.clearSelection();
-                            window.showNotification('Sewa Berakhir', 'success');
-                        }
-                    } catch (e) {
-                        console.error(e);
-                    } finally {
-                        this.isLoading = false;
-                    }
-                },
-
-                extendRental() {
-                    if (this.selectedSdb) {
-                        // 1. Ambil Tanggal Jatuh Tempo & Hari Ini
-                        // Kita konversi ke objek Date dan set jam ke 00:00:00 agar perbandingan akurat
-                        const expiryDate = new Date(this.selectedSdb.tanggal_jatuh_tempo);
-                        expiryDate.setHours(0, 0, 0, 0);
-
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-
-                        let calculatedStartDate;
-
-                        // 2. Logika Cerdas (Continuity vs Reset)
-                        if (today <= expiryDate) {
-                            // KASUS A: PERPANJANGAN DINI (Early Renewal)
-                            // Sistem otomatis menyarankan H+1 dari Jatuh Tempo Lama
-                            // Contoh: Jatuh tempo tgl 29, Baru mulai tgl 30.
-                            calculatedStartDate = new Date(expiryDate);
-                            calculatedStartDate.setDate(expiryDate.getDate() + 1);
-                        } else {
-                            // KASUS B: TERLAMBAT (Late Renewal)
-                            // Sistem menyarankan Hari Ini (karena sudah putus kontrak)
-                            calculatedStartDate = today;
-                        }
-
-                        // 3. Format ke YYYY-MM-DD untuk input HTML
-                        // Trik: Menggunakan offset timezone agar tidak bergeser ke UTC saat toISOString
-                        const offset = calculatedStartDate.getTimezoneOffset();
-                        const localDate = new Date(calculatedStartDate.getTime() - (offset * 60 * 1000));
-                        const dateString = localDate.toISOString().split('T')[0];
-
-                        // 4. Isi Form Modal
-                        this.modalFormData = {
-                            nama_nasabah: this.selectedSdb.nama_nasabah,
-                            tanggal_mulai_baru: dateString // <-- Hasil perhitungan otomatis
-                        };
-
-                        this.isExtendModalOpen = true;
-                    }
-                },
-
-                async submitExtendRental() {
-                    this.isLoading = true;
-                    try {
-                        const response = await fetch(`/sdb/${this.selectedSdb.id}/extend-rental`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                            },
-                            body: JSON.stringify(this.modalFormData)
-                        });
-                        const result = await response.json();
-                        if (result.success) {
-                            this.updateLocalUnitData(result.data);
-                            this.isExtendModalOpen = false;
-                            window.showNotification('Diperpanjang', 'success');
-                        }
-                    } catch (e) {
-                        console.error(e);
-                    } finally {
-                        this.isLoading = false;
-                    }
-                },
-
-                // --- HELPER VIEW ---
-
-                getExpiryTooltipText(status, days) {
-                    if (status === 'kosong' || days === null) return '';
+                getExpiryTooltipText(sdb) {
+                    if (!sdb || sdb.status === 'kosong') return '';
+                    const days = sdb.days_until_expiry;
+                    if (days === undefined || days === null) return '';
                     if (days < 0) return `${Math.abs(days)} hari lalu`;
                     if (days === 0) return 'Jatuh tempo hari ini';
-                    if (days === 1) return 'Jatuh tempo besok';
                     return `${days} hari lagi`;
                 },
 
+                getExpiryText(status, days) {
+                    if (status === 'kosong' || days === undefined || days === null) return '';
+                    if (days < 0) return `(Lewat ${Math.abs(days)} hari)`;
+                    return `(${days} hari lagi)`;
+                },
+
+                getStatusHeaderBadgeClass(status) {
+                    const map = {
+                        'terisi': 'bg-blue-100 text-blue-800',
+                        'akan_jatuh_tempo': 'bg-yellow-100 text-yellow-800',
+                        'lewat_jatuh_tempo': 'bg-red-100 text-red-800',
+                        'kosong': 'bg-gray-100 text-gray-800'
+                    };
+                    return map[status] || 'bg-gray-100 text-gray-800';
+                },
+                getHeaderGradientClass() {
+                    if (!this.selectedSdb) return 'from-blue-600 via-blue-700 to-blue-800 text-white';
+                    const map = {
+                        'kosong': 'from-gray-500 via-gray-600 to-gray-700 text-white',
+                        'akan_jatuh_tempo': 'from-yellow-400 via-yellow-500 to-yellow-600 text-white',
+                        'lewat_jatuh_tempo': 'from-red-500 via-red-600 to-red-700 text-white',
+                        'terisi': 'from-blue-600 via-blue-700 to-blue-800 text-white'
+                    };
+                    return map[this.selectedSdb.status] || map['terisi'];
+                },
                 formatDate(dateStr) {
                     if (!dateStr) return '-';
                     return new Date(dateStr).toLocaleDateString('id-ID', {
@@ -863,54 +880,27 @@
                         year: 'numeric'
                     });
                 },
-
                 formatDateTime(dateStr) {
                     if (!dateStr) return '-';
                     return new Date(dateStr).toLocaleString('id-ID', {
                         day: '2-digit',
-                        month: '2-digit',
+                        month: 'short',
                         year: 'numeric',
                         hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: false
+                        minute: '2-digit'
                     });
                 },
 
-                getStatusText(status) {
-                    return {
-                        'kosong': 'Kosong',
-                        'terisi': 'Terisi',
-                        'akan_jatuh_tempo': 'Akan Jatuh Tempo',
-                        'lewat_jatuh_tempo': 'Lewat Jatuh Tempo'
-                    } [status] || status;
-                },
-                getStatusHeaderBadgeClass(status) {
-                    return {
-                        'terisi': 'bg-white/20 text-white',
-                        'akan_jatuh_tempo': 'bg-yellow-100/80 text-yellow-700',
-                        'lewat_jatuh_tempo': 'bg-red-500/80 text-white'
-                    } [status] || 'bg-white/20 text-white';
-                },
-                getHeaderGradientClass() {
-                    if (!this.selectedSdb) return 'from-blue-600 via-blue-700 to-blue-800 text-white';
-                    const map = {
-                        'akan_jatuh_tempo': 'from-yellow-400 via-yellow-500 to-yellow-600 text-yellow-950',
-                        'lewat_jatuh_tempo': 'from-red-500 via-red-600 to-red-700 text-white'
-                    };
-                    return map[this.selectedSdb.status] || 'from-blue-600 via-blue-700 to-blue-800 text-white';
-                },
-                getExpiryText(status, days) {
-                    if (status === 'kosong' || days === null) return '';
-                    if (days < 0) return `(Lewat ${Math.abs(days)} hari)`;
-                    if (days === 0) return '(Jatuh tempo hari ini)';
-                    return `(${days} hari lagi)`;
-                },
-                getTotalUnitsByType(type) {
-                    if (!this.sdbLayouts[type]) return 0;
-                    return this.sdbLayouts[type].grid.flat().length;
-                },
-                getFilteredUnitsCount() {
-                    return this.filteredUnits.length;
+                applyFilters() {
+                    const s = this.filters.search.toLowerCase();
+                    const result = this.allUnits.filter(unit => {
+                        const matchSearch = s === '' || unit.nomor_sdb.toLowerCase().includes(s) || (unit
+                            .nama_nasabah && unit.nama_nasabah.toLowerCase().includes(s));
+                        const matchStatus = this.filters.status === '' || unit.status === this.filters.status;
+                        const matchTipe = this.filters.tipe === '' || unit.tipe === this.filters.tipe;
+                        return matchSearch && matchStatus && matchTipe;
+                    });
+                    this.filteredUnits = result.map(u => u.id);
                 },
                 clearFilters() {
                     this.filters = {
@@ -919,6 +909,21 @@
                         tipe: ''
                     };
                     this.applyFilters();
+                },
+                getTotalUnitsByType(type) {
+                    if (!this.sdbLayouts[type]) return 0;
+                    return this.sdbLayouts[type].grid.flat().length;
+                },
+                getFilteredUnitsCount() {
+                    return this.filteredUnits.length;
+                },
+
+                handleEscape() {
+                    if (this.isExtendModalOpen) this.isExtendModalOpen = false;
+                    else if (this.isHistoryModalOpen) this.isHistoryModalOpen = false;
+                    else if (this.isVisitModalOpen) this.isVisitModalOpen = false;
+                    else if (this.editMode) this.cancelEdit();
+                    else if (this.selectedSdb) this.clearSelection();
                 }
             };
         }

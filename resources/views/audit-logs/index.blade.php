@@ -110,13 +110,13 @@
                             <thead class="bg-gray-50 text-gray-500">
                                 <tr>
                                     <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Waktu
-                                        Kejadian</th>
+                                    </th>
                                     <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Aktor /
                                         User</th>
                                     <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Kegiatan
                                     </th>
                                     <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Deskripsi
-                                        Detail</th>
+                                    </th>
                                     <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">IP
                                         Address</th>
                                 </tr>
