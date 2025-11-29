@@ -143,23 +143,22 @@ class SdbController extends Controller
     /**
      * EXTEND: Perpanjangan Sewa.
      */
-    public function extendRental(Request $request, string $id) // Ubah SdbUnit jadi string $id
+    public function extendRental(Request $request, string $id)
     {
-        // 1. Cari Unit Manual (Explicit)
-        // Ini memastikan kita dapat object yang benar atau error 404 yang jelas
         $sdbUnit = SdbUnit::findOrFail($id);
 
-        // 2. Validasi Input (Hapus before_or_equal:today untuk perpanjangan masa depan)
+        // Validasi Input Dasar
         $validated = $request->validate([
             'tanggal_mulai_baru' => 'required|date',
-            'nama_nasabah' => 'required|string|max:255'
+            // Opsional: Jika ingin memaksa input durasi, bukan hardcode 1 tahun
+            // 'durasi_tahun' => 'required|integer|min:1', 
         ], [
             'tanggal_mulai_baru.required' => 'Tanggal mulai perpanjangan wajib diisi.',
-            'nama_nasabah.required' => 'Nama nasabah wajib diisi.'
+            'tanggal_mulai_baru.date' => 'Format tanggal tidak valid.',
         ]);
 
         try {
-            // 3. Panggil Service
+            // Panggil Service (Logic validasi bisnis ada di sini)
             $extendedUnit = $this->sdbService->extendRental($sdbUnit, $validated);
 
             return response()->json([
@@ -167,11 +166,18 @@ class SdbController extends Controller
                 'message' => 'Masa sewa berhasil diperpanjang.',
                 'data'    => new SdbUnitResource($extendedUnit)
             ]);
-        } catch (\Exception $e) {
-            // Tangkap semua error backend dan kirim sbg JSON (bukan HTML error page)
+        } catch (ValidationException $e) {
+            // Tangkap error validasi bisnis (422 Unprocessable Entity)
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal: ' . $e->getMessage()
+                'message' => $e->getMessage(),
+                'errors'  => $e->errors() // Penting untuk menampilkan field mana yang salah
+            ], 422);
+        } catch (\Exception $e) {
+            // Error server lainnya (500)
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan sistem: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -215,6 +221,40 @@ class SdbController extends Controller
     {
         $sdbUnits = SdbUnit::needsAttention()->orderBy('tanggal_jatuh_tempo')->get();
         return response()->json(['success' => true, 'data' => SdbUnitResource::collection($sdbUnits)]);
+    }
+
+    public function getNotifications()
+    {
+        // Ambil unit yang butuh perhatian
+        $units = SdbUnit::needsAttention()
+            ->orderBy('tanggal_jatuh_tempo', 'asc')
+            ->take(10)
+            ->get();
+
+        $count = SdbUnit::needsAttention()->count();
+
+        // Map data
+        $notifications = $units->map(function ($unit) {
+            $isLate = $unit->days_until_expiry < 0;
+
+            return [
+                'id' => $unit->id,
+                'nomor_sdb' => $unit->nomor_sdb,
+                'nama_nasabah' => $unit->nama_nasabah,
+                'pesan' => $isLate
+                    ? "Telat " . abs($unit->days_until_expiry) . " hari"
+                    : "Jatuh tempo dalam " . $unit->days_until_expiry . " hari",
+                'urgensi' => $isLate ? 'high' : 'medium',
+
+                // [PENTING] Ini kuncinya: Kirim parameter 'open_unit'
+                'link_action' => route('dashboard', ['open_unit' => $unit->nomor_sdb])
+            ];
+        });
+
+        return response()->json([
+            'count' => $count,
+            'items' => $notifications
+        ]);
     }
 
     /**

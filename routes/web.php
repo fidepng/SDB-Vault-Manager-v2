@@ -30,6 +30,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/sdb-filtered', [SdbController::class, 'getFilteredData'])->name('sdb.filtered');
     Route::get('/sdb-attention', [SdbController::class, 'getAttentionRequired'])->name('sdb.attention');
 
+    Route::get('/api/notifications', [SdbController::class, 'getNotifications'])->name('api.notifications');
+
     // Profile Management
     Route::controller(ProfileController::class)->group(function () {
         Route::get('/profile', 'edit')->name('profile.edit');

@@ -545,29 +545,43 @@
                 },
                 activeHistoryTab: 'sewa',
 
+                search: '',
+                selectedSdb: null,
+
                 // =================================================================
                 // 3. INITIALIZATION & WATCHERS
                 // =================================================================
                 init() {
+                    // 1. Inisialisasi list unit awal
                     this.applyFilters();
-                    window.addEventListener('sdb-data-updated', () => window.location.reload());
 
-                    // Watcher Auto-Calculate Jatuh Tempo
-                    this.$watch('formData.tanggal_sewa', (newDate) => {
-                        // Berlaku Universal (Sewa Baru & Edit) jika ada tanggal valid
-                        if (this.editMode && newDate) {
-                            try {
-                                const startDate = new Date(newDate);
-                                if (!isNaN(startDate.getTime())) {
-                                    const endDate = new Date(startDate);
-                                    endDate.setFullYear(startDate.getFullYear() + 1);
-                                    this.formData.tanggal_jatuh_tempo = endDate.toISOString().split('T')[0];
-                                }
-                            } catch (e) {
-                                console.error(e);
-                            }
-                        }
-                    });
+                    // 2. Cek apakah ada perintah buka unit dari URL (hasil klik notifikasi)
+                    this.checkDeepLink();
+                },
+
+                checkDeepLink() {
+                    // Ambil parameter 'open_unit' dari URL browser
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const unitNomor = urlParams.get('open_unit');
+
+                    // Validasi: Apakah parameter ada & apakah unitnya valid di database kita?
+                    if (unitNomor && this.sdbDataMap.hasOwnProperty(unitNomor)) {
+                        const unitToOpen = this.sdbDataMap[unitNomor];
+
+                        // A. FILTER GRID: Agar mata user fokus ke unit tersebut
+                        this.filters.search = unitNomor;
+                        this.applyFilters();
+
+                        // B. BUKA DETAIL PANEL: Panggil fungsi selection yang sudah ada
+                        // Kita gunakan $nextTick untuk memastikan UI render dulu baru panel terbuka (opsional tapi aman)
+                        this.$nextTick(() => {
+                            this.selectUnit(unitToOpen);
+                        });
+
+                        // C. BERSIHKAN URL: Supaya kalau di-refresh tidak membuka ini lagi
+                        const cleanUrl = window.location.pathname;
+                        window.history.replaceState({}, document.title, cleanUrl);
+                    }
                 },
 
                 // =================================================================
@@ -650,6 +664,23 @@
                             'T')[0] : '';
                         this.formData.tanggal_jatuh_tempo = this.selectedSdb.tanggal_jatuh_tempo ? this.selectedSdb
                             .tanggal_jatuh_tempo.split('T')[0] : '';
+                    }
+                },
+
+                selectUnit(unit) {
+                    // Jika unit yang sama diklik lagi -> Deselect (Tutup Panel)
+                    if (this.selectedSdb && this.selectedSdb.nomor_sdb === unit.nomor_sdb) {
+                        this.clearSelection();
+                    } else {
+                        // Buka Panel
+                        this.selectedSdb = unit;
+                        this.editMode = false;
+
+                        // Scroll halus ke atas agar detail panel terlihat (Mobile Friendly)
+                        window.scrollTo({
+                            top: 0,
+                            behavior: 'smooth'
+                        });
                     }
                 },
 
@@ -893,15 +924,21 @@
 
                 applyFilters() {
                     const s = this.filters.search.toLowerCase();
-                    const result = this.allUnits.filter(unit => {
-                        const matchSearch = s === '' || unit.nomor_sdb.toLowerCase().includes(s) || (unit
-                            .nama_nasabah && unit.nama_nasabah.toLowerCase().includes(s));
+                    const allUnits = Object.values(this.sdbDataMap);
+
+                    const result = allUnits.filter(unit => {
+                        const matchSearch = unit.nomor_sdb.toLowerCase().includes(s) ||
+                            (unit.nama_nasabah && unit.nama_nasabah.toLowerCase().includes(s));
                         const matchStatus = this.filters.status === '' || unit.status === this.filters.status;
                         const matchTipe = this.filters.tipe === '' || unit.tipe === this.filters.tipe;
+
                         return matchSearch && matchStatus && matchTipe;
                     });
+
+                    // Simpan ID unit yang lolos filter
                     this.filteredUnits = result.map(u => u.id);
                 },
+
                 clearFilters() {
                     this.filters = {
                         search: '',
@@ -910,6 +947,7 @@
                     };
                     this.applyFilters();
                 },
+
                 getTotalUnitsByType(type) {
                     if (!this.sdbLayouts[type]) return 0;
                     return this.sdbLayouts[type].grid.flat().length;

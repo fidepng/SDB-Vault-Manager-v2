@@ -89,54 +89,86 @@ class SdbUnitService
   // Update method extendRental di SdbUnitService.php
   public function extendRental(SdbUnit $sdbUnit, array $validatedData): SdbUnit
   {
+    // 0. Pre-Check: Unit harus berstatus sewa
     if (!$sdbUnit->is_rented) {
-      throw new \Exception('SDB kosong tidak bisa diperpanjang.', 400);
+      throw new \Exception('Unit SDB ini sedang kosong. Gunakan menu "Sewa Baru".', 400);
     }
 
-    DB::transaction(function () use ($sdbUnit, $validatedData) {
-      // 1. Snapshot Data Lama
+    $oldJatuhTempo = Carbon::parse($sdbUnit->tanggal_jatuh_tempo)->startOfDay();
+    $newStart      = Carbon::parse($validatedData['tanggal_mulai_baru'])->startOfDay();
+
+    // ----------------------------------------------------------------------
+    // VALIDASI LANJUTAN (Advanced Validation)
+    // ----------------------------------------------------------------------
+
+    // 1. Cek Overlap (Tumpang Tindih)
+    // Tanggal mulai baru TIDAK BOLEH sebelum atau sama dengan jatuh tempo lama.
+    // Logika: Kontrak lama berakhir 31 Des. Baru harus mulai minimal 1 Jan.
+    if ($newStart->lte($oldJatuhTempo)) {
+      $nextDay = $oldJatuhTempo->copy()->addDay()->format('d-m-Y');
+      throw ValidationException::withMessages([
+        'tanggal_mulai_baru' => "Tanggal overlap! Masa sewa saat ini baru berakhir pada {$oldJatuhTempo->format('d-m-Y')}. Perpanjangan harus dimulai minimal tanggal {$nextDay}."
+      ]);
+    }
+
+    // 2. Cek Gap (Celah/Keterlambatan)
+    // Jika tanggal mulai baru > (jatuh tempo + 1 hari), berarti ada jeda tidak terbayar.
+    // Opsional: Anda bisa throw error jika kebijakan kantor "Tidak Boleh Ada Gap".
+    // Di sini kita izinkan tapi catat sebagai warning di log.
+    $seharusnyaMulai = $oldJatuhTempo->copy()->addDay();
+    $daysGap = 0;
+
+    if ($newStart->gt($seharusnyaMulai)) {
+      $daysGap = $seharusnyaMulai->diffInDays($newStart);
+      // Jika Gap terlalu lama (misal > 30 hari), mungkin perlu validasi tambahan?
+      // if ($daysGap > 30) { ... } 
+    }
+
+    // ----------------------------------------------------------------------
+    // PROSES TRANSAKSI
+    // ----------------------------------------------------------------------
+
+    DB::transaction(function () use ($sdbUnit, $newStart, $daysGap) { // Pass variables
+
+      // 1. Snapshot Data Lama (Immutable)
       $oldMulai = Carbon::parse($sdbUnit->tanggal_sewa);
-      $oldJatuhTempo = Carbon::parse($sdbUnit->tanggal_jatuh_tempo);
-      $oldName = $sdbUnit->nama_nasabah; // Kita kunci nama ini
+      $oldAkhir = Carbon::parse($sdbUnit->tanggal_jatuh_tempo);
+      $oldName  = $sdbUnit->nama_nasabah;
 
-      // 2. Logic Tanggal Baru
-      $newStart = Carbon::parse($validatedData['tanggal_mulai_baru']);
-      $newEnd = $newStart->copy()->addYear(); // Tepat 1 Tahun
+      // 2. Kalkulasi Tanggal Baru (Durasi 1 Tahun)
+      $newEnd = $newStart->copy()->addYear();
 
-      // 3. Simpan ke History
-      // Hitung durasi lama (pembulatan ke atas)
-      $durasiLama = max(1, $oldMulai->diffInYears($oldJatuhTempo));
+      // 3. Arsipkan ke History
+      // Kita hitung durasi lama secara real
+      $durasiReal = max(1, $oldMulai->diffInYears($oldAkhir));
 
-      \App\Models\SdbRentalHistory::create([
-        'sdb_unit_id'    => $sdbUnit->id,
-        'nomor_sdb'      => $sdbUnit->nomor_sdb,
-        'nama_nasabah'   => $oldName, // Gunakan nama lama untuk arsip
-        'tanggal_mulai'  => $oldMulai->toDateString(),
-        'tanggal_berakhir' => $oldJatuhTempo->toDateString(),
-        'durasi_tahun'   => $durasiLama,
-        'status_akhir'   => 'selesai',
-        'catatan'        => 'Perpanjangan kontrak (History otomatis)',
+      SdbRentalHistory::create([
+        'sdb_unit_id'      => $sdbUnit->id,
+        'nomor_sdb'        => $sdbUnit->nomor_sdb,
+        'nama_nasabah'     => $oldName,
+        'tanggal_mulai'    => $oldMulai->toDateString(),
+        'tanggal_berakhir' => $oldAkhir->toDateString(),
+        'durasi_tahun'     => $durasiReal,
+        'status_akhir'     => 'selesai', // Status siklus ini selesai
+        'catatan'          => 'Perpanjangan sewa (Archived by System)',
       ]);
 
-      // 4. Update Unit (Nama Nasabah TIDAK BERUBAH)
-      // Kita abaikan input nama dari frontend untuk menjaga integritas
+      // 4. Update Data Master SDB
+      // HANYA update tanggal, nama nasabah HARUS tetap (Integritas Data)
       $sdbUnit->update([
-        'tanggal_sewa' => $newStart->toDateString(),
+        'tanggal_sewa'        => $newStart->toDateString(),
         'tanggal_jatuh_tempo' => $newEnd->toDateString()
-        // 'nama_nasabah' => ... JANGAN DIUPDATE
       ]);
 
-      // 5. Log Audit
-      $logMsg = "Perpanjangan Sewa 1 Tahun. {$newStart->format('d/m/Y')} - {$newEnd->format('d/m/Y')}";
+      // 5. Audit Log (SdbLog)
+      // Log yang informatif mencakup Gap jika ada
+      $logMessage = "Perpanjangan Sewa: {$newStart->format('d/m/Y')} s/d {$newEnd->format('d/m/Y')}.";
 
-      // Deteksi Gap (Keterlambatan)
-      $seharusnyaMulai = $oldJatuhTempo->copy()->addDay();
-      if ($newStart->gt($seharusnyaMulai)) {
-        $daysLate = $seharusnyaMulai->diffInDays($newStart);
-        $logMsg .= " (Terlambat/Gap: {$daysLate} hari)";
+      if ($daysGap > 0) {
+        $logMessage .= " [PERHATIAN: Terdapat jeda kontrak (Gap) selama {$daysGap} hari].";
       }
 
-      $this->createLog($sdbUnit, 'PERPANJANGAN', $logMsg);
+      $this->createLog($sdbUnit, 'PERPANJANGAN', $logMessage);
     });
 
     return $sdbUnit->fresh();

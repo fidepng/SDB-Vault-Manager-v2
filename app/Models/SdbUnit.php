@@ -307,7 +307,7 @@ class SdbUnit extends Model
         return [
             'nomor_sdb.required' => 'Nomor SDB wajib diisi',
             'nomor_sdb.unique' => 'Nomor SDB sudah digunakan',
-            'nomor_sdb.regex' => 'Format nomor SDB tidak valid (contoh: B1, C100)',
+            'nomor_sdb.regex' => 'Format nomor SDB harus 3 digit angka (contoh: 001, 120).',
             'tipe.required' => 'Tipe SDB wajib dipilih',
             'tipe.in' => 'Tipe SDB harus B atau C',
             'tanggal_sewa.before_or_equal' => 'Tanggal sewa tidak boleh lebih dari hari ini',
