@@ -48,7 +48,8 @@
                         {{-- HAPUS: x-data yang mengisolasi 'unit' dihapus dari div ini --}}
                         <div>
                             {{-- UBAH: Semua referensi 'unit.' diubah menjadi 'sdbDataMap[unitNumber].' --}}
-                            <div @click="showDetail(sdbDataMap[unitNumber].id)"
+                            <div :id="'unit-' + sdbDataMap[unitNumber].id"
+                                @click="showDetail(sdbDataMap[unitNumber].id)"
                                 class="sdb-unit cursor-pointer text-white font-semibold rounded-lg text-center transition-all duration-200 transform hover:scale-105 hover:shadow-lg relative group"
                                 :class="{
                                     'bg-gray-500 hover:bg-gray-600': sdbDataMap[unitNumber].status === 'kosong',

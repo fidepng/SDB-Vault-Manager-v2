@@ -89,8 +89,19 @@ class SdbController extends Controller
      */
     public function update(Request $request, SdbUnit $sdbUnit)
     {
-        // Validasi khusus update (ignore unique check for nomor_sdb if not changing)
-        $validated = $request->validate(SdbUnit::getValidationRules(true), SdbUnit::getValidationMessages());
+        // 1. Ambil rules standar dari Model
+        $rules = SdbUnit::getValidationRules(true);
+
+        // 2. [BEST PRACTICE] Override Rule Tanggal Sewa
+        // Hapus 'before_or_equal:today' agar Admin bisa:
+        // a. Memperbaiki data lama yang salah.
+        // b. Menginput sewa yang efektifnya mulai minggu depan (Pre-booking).
+        if (isset($rules['tanggal_sewa'])) {
+            $rules['tanggal_sewa'] = 'required|date';
+        }
+
+        // 3. Validasi dengan rules yang sudah dilonggarkan
+        $validated = $request->validate($rules, SdbUnit::getValidationMessages());
 
         try {
             // Panggil Service khusus Koreksi

@@ -56,6 +56,13 @@
 
     {{-- KONTEN PANEL --}}
     <div class="flex-1 p-8 overflow-y-auto">
+
+        {{-- <div x-show="new Date(selectedSdb.tanggal_sewa) > new Date()"
+            class="bg-yellow-50 text-yellow-700 p-2 text-xs rounded mb-2">
+            ⚠️ Kontrak ini bersifat Pre-booking (Aktif mulai <span
+                x-text="formatDate(selectedSdb.tanggal_sewa)"></span>)
+        </div> --}}
+
         {{-- Default State --}}
         <template x-if="!selectedSdb">
             <div class="flex flex-col items-center justify-center text-center text-gray-500 h-full">

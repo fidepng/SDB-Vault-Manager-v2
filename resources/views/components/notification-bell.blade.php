@@ -44,7 +44,7 @@
             </div>
 
             <template x-for="item in items" :key="item.id">
-                <a :href="item.link_action"
+                <a href="#" @click.prevent="open = false; $dispatch('sdb-locate', item.nomor_sdb)"
                     class="block px-4 py-3 hover:bg-blue-50 transition duration-150 border-b border-gray-100 last:border-0 group">
                     <div class="flex justify-between items-start">
                         <div>

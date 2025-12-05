@@ -1,6 +1,6 @@
 <x-app-layout>
     <div class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen" x-data="sdbManager()"
-        @keydown.escape.window="handleEscape()">
+        @keydown.escape.window="handleEscape()" @sdb-locate.window="locateUnit($event.detail)">>
         <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-stretch gap-6 py-6">
                 {{-- Panel Kiri (Detail) --}}
@@ -549,36 +549,128 @@
                 selectedSdb: null,
 
                 // =================================================================
+                // FUNGSI BARU: LOCATE UNIT (SEAMLESS)
+                // =================================================================
+                locateUnit(nomorSdb) {
+                    // 1. Validasi Unit
+                    if (!this.sdbDataMap.hasOwnProperty(nomorSdb)) return;
+                    const unit = this.sdbDataMap[nomorSdb];
+
+                    // 2. Bersihkan Filter (Agar denah utuh)
+                    this.clearFilters();
+
+                    // 3. Buka Panel Detail
+                    this.selectedSdb = unit;
+                    this.editMode = false; // Pastikan tidak dalam mode edit agar aman
+
+                    // 4. Scroll ke Lokasi (Seamless)
+                    this.$nextTick(() => {
+                        const elementId = 'unit-' + unit.id; // Pastikan ID ini ada di sdb-grid.blade.php
+                        const element = document.getElementById(elementId);
+
+                        if (element) {
+                            element.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'center',
+                                inline: 'center'
+                            });
+
+                            // Opsional: Efek visual sementara (Highlight)
+                            element.classList.add('ring-4', 'ring-blue-400');
+                            setTimeout(() => element.classList.remove('ring-4', 'ring-blue-400'), 2000);
+                        }
+                    });
+                },
+
+                // =================================================================
                 // 3. INITIALIZATION & WATCHERS
                 // =================================================================
                 init() {
-                    // 1. Inisialisasi list unit awal
+                    // 1. Setup Filter Awal
                     this.applyFilters();
 
-                    // 2. Cek apakah ada perintah buka unit dari URL (hasil klik notifikasi)
-                    this.checkDeepLink();
+                    // 2. Listener Global (Refresh Data)
+                    window.addEventListener('sdb-data-updated', () => window.location.reload());
+
+                    // 3. [RESTORED & IMPROVED] Watcher Tanggal Sewa
+                    // Kita panggil fungsi terpisah agar init() tetap rapi
+                    this.$watch('formData.tanggal_sewa', (newDate) => {
+                        this.handleRentalDateChange(newDate);
+                    });
+                },
+
+                // =================================================================
+                // LOGIC & BUSINESS RULES (BEST PRACTICE)
+                // =================================================================
+
+                // Fungsi khusus untuk menangani perubahan tanggal
+                handleRentalDateChange(newDate) {
+                    // Hanya jalan jika mode edit aktif dan tanggal valid
+                    if (this.editMode && newDate) {
+                        try {
+                            const startDate = new Date(newDate);
+
+                            // Validasi: Pastikan tanggal benar-benar valid
+                            if (!isNaN(startDate.getTime())) {
+                                const endDate = new Date(startDate);
+
+                                // ATURAN BISNIS: Default 1 Tahun
+                                // JS otomatis handle Leap Year (Tahun Kabisat)
+                                endDate.setFullYear(startDate.getFullYear() + 1);
+
+                                // Set ke format input HTML (YYYY-MM-DD)
+                                this.formData.tanggal_jatuh_tempo = endDate.toISOString().split('T')[0];
+                            }
+                        } catch (e) {
+                            console.error("Gagal menghitung jatuh tempo:", e);
+                        }
+                    }
                 },
 
                 checkDeepLink() {
-                    // Ambil parameter 'open_unit' dari URL browser
+                    // 1. Ambil parameter dari URL
                     const urlParams = new URLSearchParams(window.location.search);
                     const unitNomor = urlParams.get('open_unit');
 
-                    // Validasi: Apakah parameter ada & apakah unitnya valid di database kita?
+                    // 2. Validasi
                     if (unitNomor && this.sdbDataMap.hasOwnProperty(unitNomor)) {
                         const unitToOpen = this.sdbDataMap[unitNomor];
 
-                        // A. FILTER GRID: Agar mata user fokus ke unit tersebut
-                        this.filters.search = unitNomor;
-                        this.applyFilters();
+                        // --- [LOGIKA LAMA DIHAPUS] ---
+                        // this.filters.search = unitNomor;  <-- HAPUS INI (Penyebab filter aktif)
+                        // this.applyFilters();              <-- HAPUS INI
 
-                        // B. BUKA DETAIL PANEL: Panggil fungsi selection yang sudah ada
-                        // Kita gunakan $nextTick untuk memastikan UI render dulu baru panel terbuka (opsional tapi aman)
+                        // --- [LOGIKA BARU: SELECT & SCROLL] ---
+
+                        // A. Pastikan filter kosong agar denah tampil utuh
+                        this.clearFilters();
+
+                        // B. Select Unit (Buka Panel Kanan)
+                        this.selectedSdb = unitToOpen;
+                        this.editMode = false;
+
+                        // C. Scroll ke elemen visual unit tersebut (Auto-Focus)
                         this.$nextTick(() => {
-                            this.selectUnit(unitToOpen);
+                            const elementId = 'sdb-unit-' + unitToOpen.id;
+                            const element = document.getElementById(elementId);
+
+                            if (element) {
+                                // Scroll halus ke posisi unit
+                                element.scrollIntoView({
+                                    behavior: 'smooth',
+                                    block: 'center', // Taruh unit di tengah layar vertikal
+                                    inline: 'center' // Taruh di tengah horizontal
+                                });
+
+                                // Opsional: Beri efek visual "kedip" agar mata user tertuju kesana
+                                element.classList.add('ring-4', 'ring-red-500', 'ring-offset-2');
+                                setTimeout(() => {
+                                    element.classList.remove('ring-4', 'ring-red-500', 'ring-offset-2');
+                                }, 2000);
+                            }
                         });
 
-                        // C. BERSIHKAN URL: Supaya kalau di-refresh tidak membuka ini lagi
+                        // D. Bersihkan URL
                         const cleanUrl = window.location.pathname;
                         window.history.replaceState({}, document.title, cleanUrl);
                     }
