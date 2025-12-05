@@ -255,9 +255,19 @@ class SdbUnitService
         $newDisplay = $newData[$field] ?? '-';
 
         // Format tanggal untuk tampilan user (bukan untuk logic if di atas)
+        // Kode BARU (Solusi: Force Timezone)
         if (str_contains($field, 'tanggal')) {
-          $oldDisplay = $oldData[$field] ? Carbon::parse($oldData[$field])->format('d M Y') : '-';
-          $newDisplay = $newData[$field] ? Carbon::parse($newData[$field])->format('d M Y') : '-';
+          // Kita paksa konversi ke Timezone Aplikasi (WITA) sebelum di-format text.
+          // Ini menangani kasus format UTC dari toArray() maupun format string biasa dari Request.
+          $appTimezone = config('app.timezone');
+
+          $oldDisplay = $oldData[$field]
+            ? Carbon::parse($oldData[$field])->timezone($appTimezone)->format('d M Y')
+            : '-';
+
+          $newDisplay = $newData[$field]
+            ? Carbon::parse($newData[$field])->timezone($appTimezone)->format('d M Y')
+            : '-';
         }
 
         $changes[] = [
