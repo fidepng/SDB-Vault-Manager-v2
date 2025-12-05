@@ -1,0 +1,271 @@
+<div class="flex-shrink-0 flex flex-col bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden backdrop-blur-sm transition-opacity duration-300 min-h-[500px]"
+    :class="selectedSdb ? 'opacity-100' : 'opacity-100'"> {{-- Opacity fix agar selalu terlihat jelas --}}
+
+    {{-- HEADER: Identitas Unit --}}
+    <div class="relative px-6 py-8 flex-shrink-0 transition-colors duration-500 overflow-hidden"
+        :class="getHeaderGradientClass()">
+
+        {{-- Background Pattern (Optional for modern look) --}}
+        <div
+            class="absolute inset-0 opacity-10 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjIiIGZpbGw9IiNmZmYiLz48L3N2Zz4=')]">
+        </div>
+
+        <div class="relative flex items-center justify-between z-10">
+            <h3 class="text-2xl font-bold text-white flex items-center tracking-wide">
+                {{-- State: Belum Pilih --}}
+                <template x-if="!selectedSdb">
+                    <span class="flex items-center gap-3">
+                        <div class="bg-white/20 backdrop-blur-md rounded-xl p-2">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        Pilih Unit SDB
+                    </span>
+                </template>
+
+                {{-- State: Sudah Pilih --}}
+                <template x-if="selectedSdb">
+                    <span class="flex items-center gap-3">
+                        <div class="bg-white/20 backdrop-blur-md rounded-xl p-2 text-white">
+                            <span
+                                class="text-xs font-medium uppercase tracking-wider block leading-none mb-1 opacity-80">Unit</span>
+                            <span class="text-xl font-black leading-none" x-text="selectedSdb.nomor_sdb"></span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span x-text="'Tipe ' + selectedSdb.tipe" class="text-sm font-medium opacity-90"></span>
+                            <span class="text-lg" x-text="selectedSdb.status_text"></span>
+                        </div>
+                    </span>
+                </template>
+            </h3>
+
+            {{-- Tombol Close / Deselect --}}
+            <template x-if="selectedSdb">
+                <button @click="clearSelection()"
+                    class="text-white/70 hover:text-white hover:bg-white/20 rounded-full p-2 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </template>
+        </div>
+    </div>
+
+    {{-- CONTENT AREA --}}
+    <div class="flex-1 overflow-y-auto p-6 flex flex-col h-full bg-gray-50/50">
+
+        {{-- State: Kosong / Belum Pilih --}}
+        <template x-if="!selectedSdb">
+            <div class="flex flex-col items-center justify-center h-64 text-center space-y-4 opacity-60 mt-10">
+                <div class="bg-gray-100 rounded-full p-6">
+                    <svg class="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                        </path>
+                    </svg>
+                </div>
+                <p class="text-gray-500 font-medium text-lg">Silakan pilih unit pada denah<br>untuk melihat detail.</p>
+            </div>
+        </template>
+
+        {{-- State: Unit Terpilih --}}
+        <template x-if="selectedSdb">
+            <div class="space-y-6 animate-fade-in-up">
+
+                {{-- SECTION 1: INFORMASI UTAMA (Form / Display) --}}
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4">
+
+                    {{-- Nama Nasabah --}}
+                    <div class="group">
+                        <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Nama
+                            Penyewa</label>
+                        <div class="relative">
+                            <input type="text" x-model="formData.nama_nasabah" :disabled="!editMode"
+                                class="block w-full rounded-xl border-gray-200 bg-gray-50 text-gray-800 font-semibold focus:border-blue-500 focus:ring-blue-500 disabled:bg-transparent disabled:border-transparent disabled:px-0 disabled:text-lg transition-all duration-200"
+                                placeholder="Unit Kosong">
+
+                            {{-- Icon Edit (Hanya muncul saat hover & bukan mode edit) --}}
+                            <div class="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                x-show="!editMode && selectedSdb.status !== 'kosong'">
+                                <button @click="enableEdit()" class="text-gray-400 hover:text-blue-600 p-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                        </path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Grid Tanggal --}}
+                    <div class="grid grid-cols-2 gap-4 pt-2 border-t border-gray-50">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Mulai
+                                Sewa</label>
+                            <input type="date" x-model="formData.tanggal_sewa" :disabled="!editMode"
+                                class="block w-full text-sm rounded-lg border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-blue-500 disabled:bg-transparent disabled:border-transparent disabled:p-0 disabled:text-gray-600">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Jatuh
+                                Tempo</label>
+                            <input type="date" x-model="formData.tanggal_jatuh_tempo" :disabled="!editMode"
+                                class="block w-full text-sm rounded-lg border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-blue-500 disabled:bg-transparent disabled:border-transparent disabled:p-0"
+                                :class="{
+                                    'text-red-600 font-bold': ['akan_jatuh_tempo', 'lewat_jatuh_tempo'].includes(
+                                        selectedSdb.status)
+                                }">
+                        </div>
+                    </div>
+                </div>
+
+                {{-- SECTION 2: ACTION BUTTONS AREA --}}
+
+                {{-- A. MODE EDIT (Save/Cancel) --}}
+                <div x-show="editMode" class="flex items-center gap-3" x-transition>
+                    <button @click="cancelEdit()"
+                        class="flex-1 px-4 py-3 bg-white border border-gray-200 text-gray-600 font-semibold rounded-xl hover:bg-gray-50 transition-colors">
+                        Batal
+                    </button>
+                    <button @click="saveData()"
+                        class="flex-1 px-4 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 hover:bg-blue-700 transform hover:-translate-y-0.5 transition-all">
+                        Simpan Perubahan
+                    </button>
+                </div>
+
+                {{-- B. MODE VIEW (Normal Actions) --}}
+                <div x-show="!editMode" class="space-y-4" x-transition>
+
+                    {{-- KONDISI 1: UNIT KOSONG --}}
+                    <template x-if="selectedSdb.status === 'kosong'">
+                        <div class="space-y-3">
+                            <button @click="enableEdit()"
+                                class="w-full flex items-center justify-center gap-3 px-6 py-4 bg-green-500 text-white font-bold rounded-2xl shadow-lg shadow-green-500/20 hover:bg-green-600 hover:scale-[1.02] transition-all group">
+                                <div class="bg-white/20 p-1.5 rounded-lg group-hover:bg-white/30 transition">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                    </svg>
+                                </div>
+                                <span>Mulai Sewa Baru</span>
+                            </button>
+
+                            <button @click="openHistoryModal(selectedSdb.id)"
+                                class="w-full py-3 text-sm text-gray-500 font-medium hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors flex items-center justify-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Lihat Riwayat Sebelumnya
+                            </button>
+                        </div>
+                    </template>
+
+                    {{-- KONDISI 2: UNIT TERISI (Normal / Warning / Expired) --}}
+                    <template x-if="selectedSdb.status !== 'kosong'">
+                        <div class="flex flex-col gap-4">
+
+                            {{-- 2.1 PRIMARY ACTIONS (Grid) --}}
+                            <div class="grid grid-cols-2 gap-3">
+                                {{-- Tombol Kunjungan (Selalu Ada) --}}
+                                <button @click="isVisitModalOpen = true"
+                                    class="col-span-1 flex flex-col items-center justify-center p-3 bg-white border border-gray-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all group h-24">
+                                    <div
+                                        class="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-2 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
+                                            </path>
+                                        </svg>
+                                    </div>
+                                    <span class="text-xs font-bold text-gray-600">Catat Kunjungan</span>
+                                </button>
+
+                                {{-- Tombol History (Selalu Ada) --}}
+                                <button @click="openHistoryModal(selectedSdb.id)"
+                                    class="col-span-1 flex flex-col items-center justify-center p-3 bg-white border border-gray-200 rounded-xl hover:border-gray-400 hover:shadow-md transition-all group h-24">
+                                    <div
+                                        class="w-10 h-10 bg-gray-50 text-gray-600 rounded-full flex items-center justify-center mb-2 group-hover:bg-gray-600 group-hover:text-white transition-colors">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <span class="text-xs font-bold text-gray-600">Lihat History</span>
+                                </button>
+                            </div>
+
+                            {{-- 2.2 URGENT ACTIONS (Hanya muncul jika Warning/Expired) --}}
+                            <template x-if="['akan_jatuh_tempo', 'lewat_jatuh_tempo'].includes(selectedSdb.status)">
+                                <div class="bg-yellow-50 border border-yellow-100 rounded-2xl p-4 space-y-3">
+                                    <h4
+                                        class="text-xs font-bold text-yellow-800 uppercase tracking-wider flex items-center gap-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                                            </path>
+                                        </svg>
+                                        Tindakan Diperlukan
+                                    </h4>
+
+                                    {{-- Tombol Perpanjang (Primary Urgent) --}}
+                                    <button @click="openExtendModal()"
+                                        class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-white font-bold rounded-xl shadow-md hover:from-yellow-500 hover:to-orange-500 hover:shadow-lg transition-all">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                            </path>
+                                        </svg>
+                                        Perpanjang Sewa
+                                    </button>
+
+                                    {{-- Tombol Cetak Surat (Secondary Urgent) --}}
+                                    <a :href="`/sdb/${selectedSdb.id}/print-letter`" target="_blank"
+                                        class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-yellow-300 text-yellow-700 font-bold rounded-xl hover:bg-yellow-50 transition-all text-sm">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z">
+                                            </path>
+                                        </svg>
+                                        Cetak Surat Peringatan
+                                    </a>
+                                </div>
+                            </template>
+
+                            {{-- 2.3 NORMAL ACTIONS (Hanya muncul jika TERISI AMAN) --}}
+                            <template x-if="selectedSdb.status === 'terisi'">
+                                <button @click="openExtendModal()"
+                                    class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white border border-blue-200 text-blue-600 font-semibold rounded-xl hover:bg-blue-50 transition-all">
+                                    Perpanjang Lebih Awal
+                                </button>
+                            </template>
+
+                            {{-- DANGER ZONE (Akhiri Sewa) --}}
+                            <div class="pt-4 mt-2 border-t border-gray-200">
+                                <button @click="endRental()"
+                                    class="w-full flex items-center justify-center gap-2 px-4 py-3 text-red-500 font-medium rounded-xl hover:bg-red-50 hover:text-red-600 transition-colors text-sm">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                        </path>
+                                    </svg>
+                                    Akhiri / Putus Sewa
+                                </button>
+                            </div>
+
+                        </div>
+                    </template>
+                </div>
+
+            </div>
+        </template>
+    </div>
+</div>

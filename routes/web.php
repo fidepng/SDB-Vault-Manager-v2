@@ -4,8 +4,9 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SdbController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\SdbVisitController;
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\SdbVisitController;
+use App\Http\Controllers\SdbLetterController;
 
 /*
 |--------------------------------------------------------------------------
@@ -68,6 +69,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // --- OPERATIONAL: VISITS ---
     Route::post('/sdb/{sdbUnit}/visit', [SdbVisitController::class, 'store'])->name('sdb.visit.store');
+
+    // Route Cetak Surat
+    Route::get('/sdb/{sdbUnit}/print-letter', [SdbLetterController::class, 'print'])
+        ->name('sdb.print-letter');
 });
 
 // --- SUPER ADMIN ZONE ---

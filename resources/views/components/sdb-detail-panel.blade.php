@@ -1,6 +1,5 @@
 <div class="flex-shrink-0 flex flex-col bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden backdrop-blur-sm max-h-full transition-opacity duration-300"
     :class="selectedSdb ? 'opacity-100' : 'opacity-60'">
-
     {{-- HEADER DENGAN WARNA DINAMIS --}}
     <div class="bg-gradient-to-r px-6 py-6 flex-shrink-0 transition-colors duration-500"
         :class="getHeaderGradientClass()">
@@ -56,12 +55,15 @@
 
     {{-- KONTEN PANEL --}}
     <div class="flex-1 p-8 overflow-y-auto">
-
-        {{-- <div x-show="new Date(selectedSdb.tanggal_sewa) > new Date()"
-            class="bg-yellow-50 text-yellow-700 p-2 text-xs rounded mb-2">
-            ⚠️ Kontrak ini bersifat Pre-booking (Aktif mulai <span
-                x-text="formatDate(selectedSdb.tanggal_sewa)"></span>)
-        </div> --}}
+        {{--
+        <div
+            x-show="new Date(selectedSdb.tanggal_sewa) > new Date()"
+            class="bg-yellow-50 text-yellow-700 p-2 text-xs rounded mb-2"
+        >
+            ⚠️ Kontrak ini bersifat Pre-booking (Aktif mulai
+            <span x-text="formatDate(selectedSdb.tanggal_sewa)"></span>)
+        </div>
+        --}}
 
         {{-- Default State --}}
         <template x-if="!selectedSdb">
@@ -73,9 +75,13 @@
                         </path>
                     </svg>
                 </div>
-                <h4 class="text-lg font-semibold text-gray-700 mb-3">Pilih Safe Deposit Box</h4>
-                <p class="max-w-xs text-sm leading-relaxed text-gray-500">Klik pada kotak SDB untuk melihat detail
-                    dan mengelola data penyewa.</p>
+                <h4 class="text-lg font-semibold text-gray-700 mb-3">
+                    Pilih Safe Deposit Box
+                </h4>
+                <p class="max-w-xs text-sm leading-relaxed text-gray-500">
+                    Klik pada kotak SDB untuk melihat detail dan mengelola data
+                    penyewa.
+                </p>
             </div>
         </template>
 
@@ -85,7 +91,6 @@
                 <div class="pb-6">
                     {{-- Form Fields & Info Display --}}
                     <div class="space-y-6">
-
                         {{-- Tampilan Untuk SDB yang Kosong --}}
                         <div x-show="selectedSdb.status === 'kosong' && !editMode"
                             class="text-center text-gray-600 py-8">
@@ -97,8 +102,12 @@
                                     </path>
                                 </svg>
                             </div>
-                            <h4 class="text-lg font-semibold text-gray-800">SDB Ini Kosong</h4>
-                            <p class="text-sm mt-1 text-gray-500">Belum ada data penyewa aktif.</p>
+                            <h4 class="text-lg font-semibold text-gray-800">
+                                SDB Ini Kosong
+                            </h4>
+                            <p class="text-sm mt-1 text-gray-500">
+                                Belum ada data penyewa aktif.
+                            </p>
                         </div>
 
                         {{-- Field Nama Nasabah --}}
@@ -112,7 +121,7 @@
                                 x-text="selectedSdb?.nama_nasabah || '—'"></div>
                             <input id="nama_nasabah" x-show="editMode" type="text" x-model="formData.nama_nasabah"
                                 class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-lg"
-                                placeholder="Nama lengkap">
+                                placeholder="Nama lengkap" />
                         </div>
 
                         {{-- Field Tanggal Sewa --}}
@@ -123,10 +132,9 @@
                             </label>
                             <div x-show="!editMode"
                                 class="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 font-medium text-base shadow-sm"
-                                x-text="formatDate(selectedSdb?.tanggal_sewa)">
-                            </div>
+                                x-text="formatDate(selectedSdb?.tanggal_sewa)"></div>
                             <input type="date" x-show="editMode" x-model="formData.tanggal_sewa"
-                                class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
                         </div>
 
                         {{-- Field Jatuh Tempo --}}
@@ -154,7 +162,7 @@
                             <div x-show="editMode">
                                 <input type="date" x-model="formData.tanggal_jatuh_tempo"
                                     class="w-full rounded-xl border-gray-300 shadow-sm bg-gray-100 cursor-not-allowed text-gray-500"
-                                    readonly>
+                                    readonly />
                                 <p class="text-xs text-gray-400 mt-2 italic">
                                     *Jatuh tempo otomatis 1 tahun setelah sewa.
                                 </p>
@@ -165,10 +173,8 @@
 
                 {{-- TOMBOL AKSI (FOOTER) --}}
                 <div class="pt-6 border-t border-gray-100">
-
                     {{-- Mode Normal --}}
                     <div x-show="!editMode" class="space-y-3">
-
                         {{-- 1. BUTTON UNTUK SDB KOSONG --}}
                         <button @click="editMode = true; initFormData()" x-show="selectedSdb?.status === 'kosong'"
                             class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center group">
@@ -230,6 +236,27 @@
                             Perpanjang Sewa
                         </button>
 
+                        {{-- Tombol Cetak Surat Peringatan (Hanya Muncul Jika Perlu) --}}
+                        <template
+                            x-if="selectedSdb && ['akan_jatuh_tempo', 'lewat_jatuh_tempo'].includes(selectedSdb.status)">
+                            <div class="mt-4 mb-2">
+                                <a :href="`/sdb/${selectedSdb.id}/print-letter`" target="_blank"
+                                    class="flex items-center justify-center w-full px-4 py-3 text-sm font-bold text-white transition-all transform rounded-xl shadow-md hover:scale-[1.02] focus:ring-4 focus:ring-opacity-50"
+                                    :class="selectedSdb.status === 'lewat_jatuh_tempo' ?
+                                        'bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 focus:ring-red-300' :
+                                        'bg-gradient-to-r from-yellow-500 to-yellow-400 hover:from-yellow-400 hover:to-yellow-300 text-yellow-900 focus:ring-yellow-200'">
+                                    {{-- Icon Printer --}}
+                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z">
+                                        </path>
+                                    </svg>
+                                    <span>Cetak Surat Peringatan</span>
+                                </a>
+                            </div>
+                        </template>
+
                         {{-- Tombol AKHIRI SEWA (Selalu ada jika ada nasabah) --}}
                         <button @click="endRental()" x-show="selectedSdb?.nama_nasabah"
                             class="w-full bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-600 font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center border border-transparent hover:border-red-100">
@@ -237,10 +264,15 @@
                         </button>
 
                         {{-- Tombol LIHAT RIWAYAT (Khusus Status Kosong - agar tetap bisa cek history) --}}
-                        {{-- <button @click="openHistoryModal()" x-show="selectedSdb?.status === 'kosong'"
-                            class="w-full bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 font-medium py-2 px-4 rounded-xl transition-colors text-sm flex items-center justify-center">
+                        {{--
+                        <button
+                            @click="openHistoryModal()"
+                            x-show="selectedSdb?.status === 'kosong'"
+                            class="w-full bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 font-medium py-2 px-4 rounded-xl transition-colors text-sm flex items-center justify-center"
+                        >
                             Lihat Arsip Riwayat SDB Ini
-                        </button> --}}
+                        </button>
+                        --}}
 
                         <button @click="openHistoryModal()" x-show="selectedSdb?.status === 'kosong'"
                             class="w-full flex items-center justify-center p-3 mb-3 rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors border border-gray-200 text-sm font-medium">
@@ -251,8 +283,6 @@
                             </svg>
                             Lihat Arsip Riwayat SDB
                         </button>
-
-
                     </div>
 
                     {{-- Mode Edit --}}
