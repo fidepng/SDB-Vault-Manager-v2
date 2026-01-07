@@ -7,6 +7,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\SdbVisitController;
 use App\Http\Controllers\SdbLetterController;
+use App\Http\Controllers\SdbImportController; // BARU: Import Controller
 
 /*
 |--------------------------------------------------------------------------
@@ -40,6 +41,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/profile', 'destroy')->name('profile.destroy');
     });
 
+    // --- FASE 5: EXPORT DATA (Admin & Super Admin) ---
+    // PENTING: Route ini HARUS di atas route dengan wildcard {sdbUnit}
+    Route::get('/sdb/export', [SdbImportController::class, 'export'])
+        ->name('sdb.export');
+
     // --- SDB CORE OPERATIONS ---
     // Menggunakan Group Controller untuk menghindari penulisan ulang [SdbController::class]
     Route::controller(SdbController::class)->group(function () {
@@ -56,8 +62,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/sdb/{sdbUnit}/rent', 'storeRental')->name('sdb.rent');
 
         // 4. Perpanjangan (Explicit Action)
-        // Route::post('/sdb/{sdbUnit}/extend', 'extendRental')->name('sdb.extend-rental');
-        Route::post('/sdb/{id}/extend', [SdbController::class, 'extendRental'])->name('sdb.extend-rental');
+        Route::post('/sdb/{id}/extend', 'extendRental')->name('sdb.extend-rental');
 
         // 5. Koreksi Data (Explicit Action)
         // Hanya untuk edit typo, bukan ganti sewa
@@ -70,7 +75,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // --- OPERATIONAL: VISITS ---
     Route::post('/sdb/{sdbUnit}/visit', [SdbVisitController::class, 'store'])->name('sdb.visit.store');
 
-    // Route Cetak Surat
+    // --- OPERATIONAL: LETTERS ---
     Route::get('/sdb/{sdbUnit}/print-letter', [SdbLetterController::class, 'print'])
         ->name('sdb.print-letter');
 });
@@ -80,15 +85,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['auth', 'super_admin'])->prefix('admin')->group(function () {
 
     // 1. User Management (CRUD Staff)
-    // Note: Kita menggunakan UserController standard, bukan route 'register' dari Breeze
-    // karena ini adalah create user oleh admin, bukan self-registration.
     Route::resource('users', UserController::class);
 
     // 2. System Audit Logs
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
 
-    // 3. Future Proofing: Import/Export Excel (Next Phase)
-    // Route::post('/import', [ImportController::class, 'store'])->name('import');
+    // 3. FASE 5: IMPORT DATA EXCEL (SUPER ADMIN ONLY)
+    Route::post('/import/upload', [SdbImportController::class, 'upload'])->name('import.upload');
+    Route::post('/import/execute', [SdbImportController::class, 'execute'])->name('import.execute');
+    Route::get('/import/cancel', [SdbImportController::class, 'cancel'])->name('import.cancel');
 });
 
 require __DIR__ . '/auth.php';

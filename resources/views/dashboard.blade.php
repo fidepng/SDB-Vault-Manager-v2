@@ -1,6 +1,6 @@
 <x-app-layout>
     <div class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen" x-data="sdbManager()"
-        @keydown.escape.window="handleEscape()" @sdb-locate.window="locateUnit($event.detail)">>
+        @keydown.escape.window="handleEscape()" @sdb-locate.window="locateUnit($event.detail)">
         <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-stretch gap-6 py-6">
                 {{-- Panel Kiri (Detail) --}}
@@ -777,8 +777,21 @@
                 },
 
                 cancelEdit() {
+                    console.log('[DEBUG] cancelEdit called');
+                    console.log('[DEBUG] selectedSdb BEFORE:', JSON.stringify(this.selectedSdb));
+
                     this.editMode = false;
-                    this.showDetail(this.selectedSdb.id);
+
+                    console.log('[DEBUG] editMode set to false');
+                    console.log('[DEBUG] selectedSdb AFTER:', JSON.stringify(this.selectedSdb));
+
+                    this.formData = {
+                        nama_nasabah: '',
+                        tanggal_sewa: '',
+                        tanggal_jatuh_tempo: '',
+                        nomor_sdb: '',
+                        tipe: ''
+                    };
                 },
 
                 async saveData() {

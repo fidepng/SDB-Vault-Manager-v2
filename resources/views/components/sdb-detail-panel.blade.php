@@ -1,5 +1,35 @@
-<div class="flex-shrink-0 flex flex-col bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden backdrop-blur-sm max-h-full transition-opacity duration-300"
-    :class="selectedSdb ? 'opacity-100' : 'opacity-60'">
+<div class="flex-shrink-0 flex flex-col bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden backdrop-blur-sm transition-all duration-300"
+    :class="selectedSdb ? 'opacity-100' : 'opacity-60'" style="min-height: 500px; will-change: auto;"
+    x-data="{
+        // CRITICAL: Sync formData whenever selectedSdb changes
+    }" x-init="// Watch for unit changes and sync formData immediately
+    $watch('selectedSdb', (unit) => {
+        if (unit) {
+            // Force update formData to prevent stale data
+            formData.nama_nasabah = unit.nama_nasabah || '';
+            formData.tanggal_sewa = unit.tanggal_sewa ? unit.tanggal_sewa.substring(0, 10) : '';
+            formData.tanggal_jatuh_tempo = unit.tanggal_jatuh_tempo ? unit.tanggal_jatuh_tempo.substring(0, 10) : '';
+        }
+    });">
+
+    {{-- Enhanced Loading Overlay (Optional - untuk future use) --}}
+    <div x-show="isLoading" x-cloak
+        class="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-3xl z-50 flex items-center justify-center"
+        x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100">
+        <div class="flex flex-col items-center gap-3">
+            <svg class="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none"
+                viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                </circle>
+                <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
+            </svg>
+            <span class="text-sm font-medium text-gray-600">Memproses...</span>
+        </div>
+    </div>
+
     {{-- HEADER DENGAN WARNA DINAMIS --}}
     <div class="bg-gradient-to-r px-6 py-6 flex-shrink-0 transition-colors duration-500"
         :class="getHeaderGradientClass()">
@@ -32,7 +62,7 @@
                         <span x-text="'SDB ' + selectedSdb?.nomor_sdb" class="text-xl"></span>
 
                         {{-- Status badge di header --}}
-                        <div x-show="selectedSdb.status === 'terisi'"
+                        <div x-show="selectedSdb?.status === 'terisi'"
                             class="ml-3 px-2.5 py-1 rounded-full text-xs font-semibold"
                             :class="getStatusHeaderBadgeClass(selectedSdb.status)">
                             <span x-text="getStatusText(selectedSdb.status)"></span>
@@ -87,216 +117,325 @@
 
         {{-- SDB Selected State --}}
         <template x-if="selectedSdb">
-            <div>
-                <div class="pb-6">
-                    {{-- Form Fields & Info Display --}}
-                    <div class="space-y-6">
-                        {{-- Tampilan Untuk SDB yang Kosong --}}
-                        <div x-show="selectedSdb.status === 'kosong' && !editMode"
-                            class="text-center text-gray-600 py-8">
-                            <div class="inline-block bg-gray-50 rounded-full p-5 mb-5 border border-gray-100">
-                                <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                                    </path>
-                                </svg>
-                            </div>
-                            <h4 class="text-lg font-semibold text-gray-800">
-                                SDB Ini Kosong
-                            </h4>
-                            <p class="text-sm mt-1 text-gray-500">
-                                Belum ada data penyewa aktif.
-                            </p>
-                        </div>
+            {{-- CONTAINER UTAMA DENGAN PROPER SPACING --}}
+            <div class="space-y-4">
 
-                        {{-- Field Nama Nasabah --}}
-                        <div x-show="selectedSdb.status !== 'kosong' || editMode">
-                            <label for="nama_nasabah"
-                                class="text-xs font-bold text-gray-400 uppercase tracking-wide flex items-center mb-2">
-                                Nama Nasabah
-                            </label>
-                            <div x-show="!editMode"
-                                class="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 font-bold text-lg shadow-sm"
-                                x-text="selectedSdb?.nama_nasabah || '—'"></div>
-                            <input id="nama_nasabah" x-show="editMode" type="text" x-model="formData.nama_nasabah"
-                                class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-lg"
-                                placeholder="Nama lengkap" />
-                        </div>
+                {{-- SECTION 1: INFO CARD --}}
+                <div x-show="selectedSdb?.status !== 'kosong' || editMode"
+                    x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95"
+                    x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-150"
+                    x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+                    class="bg-gradient-to-br from-white to-gray-50/50 rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
 
-                        {{-- Field Tanggal Sewa --}}
-                        <div x-show="selectedSdb.status !== 'kosong' || editMode">
-                            <label
-                                class="text-xs font-bold text-gray-400 uppercase tracking-wide flex items-center mb-2">
-                                Tanggal Sewa
-                            </label>
-                            <div x-show="!editMode"
-                                class="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 font-medium text-base shadow-sm"
-                                x-text="formatDate(selectedSdb?.tanggal_sewa)"></div>
-                            <input type="date" x-show="editMode" x-model="formData.tanggal_sewa"
-                                class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
-                        </div>
+                    {{-- Header Strip --}}
+                    <div class="h-1.5 w-full"
+                        :class="{
+                            'bg-gradient-to-r from-blue-400 to-blue-600': selectedSdb?.status === 'terisi',
+                            'bg-gradient-to-r from-yellow-400 to-orange-500': selectedSdb
+                                ?.status === 'akan_jatuh_tempo',
+                            'bg-gradient-to-r from-red-500 to-red-700': selectedSdb?.status === 'lewat_jatuh_tempo'
+                        }">
+                    </div>
 
-                        {{-- Field Jatuh Tempo --}}
-                        <div x-show="selectedSdb.status !== 'kosong' || editMode">
-                            <label
-                                class="text-xs font-bold text-gray-400 uppercase tracking-wide flex items-center mb-2">
-                                Jatuh Tempo
-                            </label>
+                    {{-- Content Area --}}
+                    <div class="p-6 space-y-5">
 
-                            <div x-show="!editMode"
-                                class="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-medium text-base flex items-center justify-between shadow-sm"
-                                :class="{
-                                    'text-red-600 bg-red-50 border-red-100': selectedSdb
-                                        ?.status === 'lewat_jatuh_tempo',
-                                    'text-yellow-700 bg-yellow-50 border-yellow-100': selectedSdb
-                                        ?.status === 'akan_jatuh_tempo',
-                                    'text-gray-900': selectedSdb?.status === 'terisi'
-                                }">
-                                <span x-text="formatDate(selectedSdb?.tanggal_jatuh_tempo)"></span>
-                                <span class="text-xs font-bold px-2 py-1 rounded-md bg-white/50"
-                                    x-text="getExpiryText(selectedSdb.status, selectedSdb.days_until_expiry)">
-                                </span>
+                        {{-- 1. NAMA NASABAH --}}
+                        <div class="group relative">
+                            <div class="flex items-center justify-between mb-2">
+                                <label
+                                    class="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z">
+                                        </path>
+                                    </svg>
+                                    Penyewa
+                                </label>
+
+                                <button x-show="!editMode && selectedSdb?.status !== 'kosong'" @click="initFormData()"
+                                    class="opacity-0 group-hover:opacity-100 transition-all duration-200 p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600"
+                                    title="Edit Data">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                        </path>
+                                    </svg>
+                                </button>
                             </div>
 
-                            <div x-show="editMode">
-                                <input type="date" x-model="formData.tanggal_jatuh_tempo"
-                                    class="w-full rounded-xl border-gray-300 shadow-sm bg-gray-100 cursor-not-allowed text-gray-500"
-                                    readonly />
-                                <p class="text-xs text-gray-400 mt-2 italic">
-                                    *Jatuh tempo otomatis 1 tahun setelah sewa.
+                            <div x-show="!editMode"
+                                class="block w-full text-lg font-bold text-gray-900 px-2 py-1.5 rounded-xl hover:bg-gray-50 transition-colors min-h-[44px] flex items-center"
+                                x-text="selectedSdb?.nama_nasabah || 'Masukkan Nama Nasabah'">
+                            </div>
+
+                            <input x-show="editMode" type="text" x-model="formData.nama_nasabah"
+                                class="block w-full text-lg font-bold bg-white border-2 border-blue-300 text-gray-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 focus:outline-none px-4 py-3 rounded-xl transition-all duration-200"
+                                placeholder="Masukkan Nama Nasabah">
+                        </div>
+
+                        {{-- 2. TANGGAL --}}
+                        <div class="grid grid-cols-2 gap-4">
+
+                            <div>
+                                <label
+                                    class="text-[9px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5 block flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                                        </path>
+                                    </svg>
+                                    Mulai
+                                </label>
+
+                                <div x-show="!editMode"
+                                    class="block w-full text-sm font-semibold bg-gray-50 border border-gray-200 text-gray-700 px-3 py-2 rounded-lg"
+                                    x-text="selectedSdb?.tanggal_sewa ? new Date(selectedSdb.tanggal_sewa).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: 'numeric'}) : '-'">
+                                </div>
+
+                                <input x-show="editMode" type="date" x-model="formData.tanggal_sewa"
+                                    class="block w-full text-sm font-semibold bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-lg transition-all">
+                            </div>
+
+                            <div>
+                                <label
+                                    class="text-[9px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5 block flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    Jatuh Tempo
+                                </label>
+
+                                <div x-show="!editMode" class="block w-full text-sm font-bold px-3 py-2 rounded-lg"
+                                    :class="{
+                                        'bg-red-50 border border-red-200 text-red-700': selectedSdb
+                                            ?.status === 'lewat_jatuh_tempo',
+                                        'bg-yellow-50 border border-yellow-200 text-yellow-700': selectedSdb
+                                            ?.status === 'akan_jatuh_tempo',
+                                        'bg-gray-50 border border-gray-200 text-gray-600': selectedSdb
+                                            ?.status === 'terisi'
+                                    }"
+                                    x-text="selectedSdb?.tanggal_jatuh_tempo ? new Date(selectedSdb.tanggal_jatuh_tempo).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: 'numeric'}) : '-'">
+                                </div>
+
+                                <input x-show="editMode" type="date" x-model="formData.tanggal_jatuh_tempo"
+                                    disabled
+                                    class="block w-full text-sm font-bold rounded-lg cursor-not-allowed bg-gray-50 border-gray-200 text-gray-600">
+
+                                <p x-show="editMode" x-transition
+                                    class="text-[10px] text-blue-600 mt-1.5 flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                    </svg>
+                                    Otomatis 1 tahun dari tanggal sewa
                                 </p>
                             </div>
                         </div>
+
                     </div>
                 </div>
 
-                {{-- TOMBOL AKSI (FOOTER) --}}
-                <div class="pt-6 border-t border-gray-100">
-                    {{-- Mode Normal --}}
-                    <div x-show="!editMode" class="space-y-3">
-                        {{-- 1. BUTTON UNTUK SDB KOSONG --}}
-                        <button @click="editMode = true; initFormData()" x-show="selectedSdb?.status === 'kosong'"
-                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 px-4 rounded-xl transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center group">
-                            <svg class="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" fill="none"
-                                stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                            </svg>
-                            Tambah Penyewa Baru
-                        </button>
+                {{-- Empty State --}}
+                <div x-show="selectedSdb?.status === 'kosong' && !editMode"
+                    x-transition:enter="transition ease-out duration-300"
+                    x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+                    class="text-center py-10">
 
-                        {{-- 2. BUTTONS UTAMA (JIKA TERISI) --}}
-                        <div x-show="selectedSdb?.status !== 'kosong'" class="grid grid-cols-2 gap-3">
-                            {{-- Catat Kunjungan (Kiri) --}}
-                            <button @click="openVisitModal()"
-                                class="col-span-1 bg-white border-2 border-blue-50 text-blue-600 hover:border-blue-200 hover:bg-blue-50 font-semibold py-3 rounded-xl transition-colors flex flex-col items-center justify-center h-20 shadow-sm">
-                                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="relative inline-flex items-center justify-center mb-6">
+                        <div class="absolute inset-0 rounded-full bg-blue-100 animate-ping opacity-20"></div>
+                        <div
+                            class="relative bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border-2 border-blue-200/50 shadow-sm">
+                            <svg class="w-12 h-12 text-blue-400" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                                </path>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <h4 class="text-lg font-bold text-gray-800 mb-2">
+                        Safe Deposit Box Tersedia
+                    </h4>
+                    <p class="text-sm text-gray-500 max-w-[220px] mx-auto leading-relaxed">
+                        Unit ini belum memiliki penyewa aktif. Klik tombol di bawah untuk memulai kontrak baru.
+                    </p>
+                </div>
+
+                {{-- SECTION 2: ACTION BUTTONS (SEPARATED WITH PROPER SPACING) --}}
+
+                {{-- A. MODE EDIT (Save/Cancel) --}}
+                <div x-show="editMode" x-transition:enter="transition ease-out duration-200"
+                    x-transition:enter-start="opacity-0 translate-y-2"
+                    x-transition:enter-end="opacity-100 translate-y-0"
+                    x-transition:leave="transition ease-in duration-150"
+                    x-transition:leave-start="opacity-100 translate-y-0"
+                    x-transition:leave-end="opacity-0 translate-y-2" class="flex items-center gap-2.5">
+
+                    <button @click="cancelEdit()"
+                        class="flex-1 px-4 py-2.5 bg-white border-2 border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 hover:border-gray-400 active:scale-95 focus:outline-none focus:ring-4 focus:ring-gray-200 transition-all duration-150">
+                        Batal
+                    </button>
+
+                    <button @click="saveData()" :disabled="isLoading"
+                        class="flex-1 px-4 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-xl shadow-lg shadow-green-500/30 hover:shadow-green-600/40 hover:from-green-600 hover:to-green-700 active:scale-95 focus:outline-none focus:ring-4 focus:ring-green-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all duration-150 flex items-center justify-center gap-2">
+                        <svg x-show="!isLoading" class="w-4 h-4" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7">
+                            </path>
+                        </svg>
+                        <svg x-show="isLoading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                            </path>
+                        </svg>
+                        <span x-text="isLoading ? 'Menyimpan...' : 'Simpan'"></span>
+                    </button>
+                </div>
+
+                {{-- B. MODE VIEW (Normal Actions) - FIXED BLINKING --}}
+                <div x-show="!editMode" x-cloak x-transition:enter="transition ease-out duration-200 delay-100"
+                    x-transition:enter-start="opacity-0 translate-y-2"
+                    x-transition:enter-end="opacity-100 translate-y-0"
+                    x-transition:leave="transition ease-in duration-100"
+                    x-transition:leave-start="opacity-100 translate-y-0"
+                    x-transition:leave-end="opacity-0 translate-y-2" class="space-y-3">
+
+                    {{-- Status KOSONG --}}
+                    <template x-if="selectedSdb?.status === 'kosong'">
+                        <div class="space-y-2.5">
+                            <button @click="initFormData()"
+                                class="w-full px-5 py-3.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-blue-600/40 hover:from-blue-700 hover:to-blue-800 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2.5">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
-                                    </path>
+                                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                                 </svg>
-                                <span class="text-xs">Catat Kunjungan</span>
+                                <span>Mulai Sewa Baru</span>
                             </button>
 
-                            {{-- Lihat History (Kanan) --}}
                             <button @click="openHistoryModal()"
-                                class="col-span-1 bg-white border-2 border-gray-100 text-gray-600 hover:border-gray-300 hover:bg-gray-50 font-semibold py-3 rounded-xl transition-colors flex flex-col items-center justify-center h-20 shadow-sm">
-                                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                class="w-full py-2 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors flex items-center justify-center gap-1.5">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
-                                <span class="text-xs">Lihat Riwayat</span>
+                                Lihat Riwayat Sebelumnya
                             </button>
                         </div>
+                    </template>
 
-                        {{-- 3. BUTTONS OPERASIONAL (EDIT/PERPANJANG/AKHIRI) --}}
+                    {{-- Status TIDAK KOSONG --}}
+                    <template x-if="selectedSdb?.status !== 'kosong'">
+                        <div class="space-y-3.5">
 
-                        {{-- Tombol untuk STATUS NORMAL (Terisi) --}}
-                        <button @click="editMode = true; initFormData()" x-show="selectedSdb?.status === 'terisi'"
-                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center shadow-lg hover:shadow-xl">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
-                                </path>
-                            </svg>
-                            Edit Data Sewa
-                        </button>
+                            {{-- Quick Actions Bar --}}
+                            <div class="grid grid-cols-2 gap-2.5">
 
-                        {{-- Tombol untuk STATUS WARNING (Akan/Lewat Jatuh Tempo) --}}
-                        <button @click="extendRental()"
-                            x-show="['akan_jatuh_tempo', 'lewat_jatuh_tempo'].includes(selectedSdb?.status)"
-                            class="w-full text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center shadow-lg hover:shadow-xl"
-                            :class="selectedSdb?.status === 'lewat_jatuh_tempo' ? 'bg-red-600 hover:bg-red-700' :
-                                'bg-yellow-500 hover:bg-yellow-600'">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            Perpanjang Sewa
-                        </button>
-
-                        {{-- Tombol Cetak Surat Peringatan (Hanya Muncul Jika Perlu) --}}
-                        <template
-                            x-if="selectedSdb && ['akan_jatuh_tempo', 'lewat_jatuh_tempo'].includes(selectedSdb.status)">
-                            <div class="mt-4 mb-2">
-                                <a :href="`/sdb/${selectedSdb.id}/print-letter`" target="_blank"
-                                    class="flex items-center justify-center w-full px-4 py-3 text-sm font-bold text-white transition-all transform rounded-xl shadow-md hover:scale-[1.02] focus:ring-4 focus:ring-opacity-50"
-                                    :class="selectedSdb.status === 'lewat_jatuh_tempo' ?
-                                        'bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 focus:ring-red-300' :
-                                        'bg-gradient-to-r from-yellow-500 to-yellow-400 hover:from-yellow-400 hover:to-yellow-300 text-yellow-900 focus:ring-yellow-200'">
-                                    {{-- Icon Printer --}}
-                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor"
-                                        viewBox="0 0 24 24">
+                                <button @click="openVisitModal()"
+                                    class="relative flex flex-col items-center justify-center gap-2 py-3.5 bg-white border-2 border-blue-100 text-blue-700 font-semibold rounded-xl hover:border-blue-300 hover:bg-blue-50 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all duration-150 group overflow-hidden">
+                                    <div
+                                        class="absolute inset-0 bg-gradient-to-br from-blue-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                    </div>
+                                    <svg class="w-5 h-5 relative z-10 transition-transform group-hover:scale-110 group-hover:-rotate-6"
+                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z">
+                                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
                                         </path>
                                     </svg>
-                                    <span>Cetak Surat Peringatan</span>
-                                </a>
+                                    <span class="text-xs relative z-10">Catat Kunjungan</span>
+                                </button>
+
+                                <button @click="openHistoryModal()"
+                                    class="relative flex flex-col items-center justify-center gap-2 py-3.5 bg-white border-2 border-gray-200 text-gray-700 font-semibold rounded-xl hover:border-gray-300 hover:bg-gray-50 active:scale-95 focus:outline-none focus:ring-4 focus:ring-gray-100 transition-all duration-150 group overflow-hidden">
+                                    <div
+                                        class="absolute inset-0 bg-gradient-to-br from-gray-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                    </div>
+                                    <svg class="w-5 h-5 relative z-10 transition-transform group-hover:scale-110 group-hover:rotate-12"
+                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <span class="text-xs relative z-10">Lihat Riwayat</span>
+                                </button>
                             </div>
-                        </template>
 
-                        {{-- Tombol AKHIRI SEWA (Selalu ada jika ada nasabah) --}}
-                        <button @click="endRental()" x-show="selectedSdb?.nama_nasabah"
-                            class="w-full bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-600 font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center border border-transparent hover:border-red-100">
-                            Akhiri Sewa
-                        </button>
+                            {{-- Conditional Actions --}}
+                            <div class="space-y-2">
 
-                        {{-- Tombol LIHAT RIWAYAT (Khusus Status Kosong - agar tetap bisa cek history) --}}
-                        {{--
-                        <button
-                            @click="openHistoryModal()"
-                            x-show="selectedSdb?.status === 'kosong'"
-                            class="w-full bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 font-medium py-2 px-4 rounded-xl transition-colors text-sm flex items-center justify-center"
-                        >
-                            Lihat Arsip Riwayat SDB Ini
-                        </button>
-                        --}}
+                                {{-- TERISI: Edit Button --}}
+                                <button @click="initFormData()" x-show="selectedSdb?.status === 'terisi'"
+                                    class="w-full px-4 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 active:scale-[0.98] shadow-md hover:shadow-lg transition-all duration-150 flex items-center justify-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
+                                        </path>
+                                    </svg>
+                                    Edit Data Sewa
+                                </button>
 
-                        <button @click="openHistoryModal()" x-show="selectedSdb?.status === 'kosong'"
-                            class="w-full flex items-center justify-center p-3 mb-3 rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors border border-gray-200 text-sm font-medium">
-                            <svg class="w-5 h-5 mr-2 text-gray-400" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            Lihat Arsip Riwayat SDB
-                        </button>
-                    </div>
+                                {{-- WARNING: Urgent Actions --}}
+                                <template
+                                    x-if="['akan_jatuh_tempo', 'lewat_jatuh_tempo'].includes(selectedSdb?.status)">
+                                    <div class="space-y-2">
 
-                    {{-- Mode Edit --}}
-                    <div x-show="editMode" class="flex items-center gap-3">
-                        <button @click="saveData()"
-                            class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-xl transition-colors shadow-lg shadow-green-500/30">
-                            Simpan
-                        </button>
-                        <button @click="cancelEdit()"
-                            class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-4 rounded-xl transition-colors">
-                            Batal
-                        </button>
-                    </div>
+                                        <button @click="extendRental()"
+                                            class="w-full px-4 py-3 text-white font-bold rounded-xl shadow-lg active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-2"
+                                            :class="selectedSdb?.status === 'lewat_jatuh_tempo' ?
+                                                'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 shadow-red-500/30 hover:shadow-red-600/40' :
+                                                'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 shadow-yellow-500/30 hover:shadow-yellow-600/40'">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                                </path>
+                                            </svg>
+                                            Perpanjang Sewa
+                                        </button>
+
+                                        <a :href="`/sdb/${selectedSdb?.id}/print-letter`" target="_blank"
+                                            class="w-full px-4 py-2.5 bg-white text-sm font-semibold rounded-xl border-2 active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-2"
+                                            :class="selectedSdb?.status === 'lewat_jatuh_tempo' ?
+                                                'border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400' :
+                                                'border-yellow-300 text-yellow-700 hover:bg-yellow-50 hover:border-yellow-400'">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z">
+                                                </path>
+                                            </svg>
+                                            Cetak Surat Peringatan
+                                        </a>
+                                    </div>
+                                </template>
+                            </div>
+
+                            {{-- Danger Zone --}}
+                            <div class="pt-3 border-t border-dashed border-gray-200">
+                                <button @click="endRental()"
+                                    class="group w-full py-2.5 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg focus:outline-none focus:ring-4 focus:ring-red-100 transition-all duration-150 flex items-center justify-center gap-1.5 relative overflow-hidden">
+                                    <div
+                                        class="absolute inset-0 bg-gradient-to-r from-transparent via-red-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                    </div>
+                                    <svg class="w-4 h-4 relative z-10 transition-transform group-hover:scale-110 group-hover:rotate-12"
+                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                        </path>
+                                    </svg>
+                                    <span class="relative z-10">Akhiri Sewa</span>
+                                </button>
+                            </div>
+
+                        </div>
+                    </template>
+
                 </div>
+
             </div>
         </template>
     </div>
