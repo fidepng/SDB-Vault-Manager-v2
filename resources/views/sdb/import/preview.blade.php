@@ -51,7 +51,6 @@
                     @endif
                 </div>
 
-                {{-- Quick Actions --}}
                 <div class="flex gap-3">
                     <a href="{{ route('dashboard') }}"
                         class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors flex items-center gap-2">
@@ -67,7 +66,6 @@
 
         {{-- SUMMARY CARDS --}}
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            {{-- Total Rows --}}
             <div
                 class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl shadow-lg border border-blue-200 p-6 transform hover:scale-105 transition-transform">
                 <div class="flex items-center justify-between">
@@ -84,7 +82,6 @@
                 </div>
             </div>
 
-            {{-- New Rentals --}}
             <div
                 class="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl shadow-lg border border-green-200 p-6 transform hover:scale-105 transition-transform">
                 <div class="flex items-center justify-between">
@@ -101,7 +98,6 @@
                 </div>
             </div>
 
-            {{-- Corrections --}}
             <div
                 class="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-2xl shadow-lg border border-yellow-200 p-6 transform hover:scale-105 transition-transform">
                 <div class="flex items-center justify-between">
@@ -118,7 +114,6 @@
                 </div>
             </div>
 
-            {{-- Errors --}}
             <div
                 class="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl shadow-lg border border-red-200 p-6 transform hover:scale-105 transition-transform">
                 <div class="flex items-center justify-between">
@@ -136,7 +131,7 @@
             </div>
         </div>
 
-        {{-- ERROR SECTION (Enhanced Design) --}}
+        {{-- ERROR SECTION --}}
         @if (count($results['errors']) > 0)
             <div
                 class="bg-gradient-to-r from-red-50 to-red-100 border-2 border-red-300 rounded-2xl p-6 mb-8 shadow-xl">
@@ -154,7 +149,6 @@
                             sebelum import dapat dilanjutkan.
                         </p>
 
-                        {{-- Error List with Better Design --}}
                         <div class="space-y-3 max-h-96 overflow-y-auto pr-2">
                             @foreach ($results['errors'] as $index => $error)
                                 <div
@@ -179,7 +173,6 @@
                             @endforeach
                         </div>
 
-                        {{-- Action Buttons --}}
                         <div class="mt-6 flex gap-3">
                             <a href="{{ route('dashboard') }}"
                                 class="flex-1 px-6 py-3 bg-white border-2 border-red-300 text-red-700 rounded-xl font-bold text-center hover:bg-red-50 transition-colors shadow-sm">
@@ -198,7 +191,7 @@
                 </div>
             </div>
         @else
-            {{-- SUCCESS: Show Details & Confirmation --}}
+            {{-- SUCCESS: Show Details & Confirmation ONLY IF CHANGES EXIST --}}
 
             {{-- NEW RENTALS TABLE --}}
             @if (count($results['new']) > 0)
@@ -214,9 +207,8 @@
                             </span>
                             <span>Sewa Baru ({{ count($results['new']) }} unit)</span>
                         </h3>
-                        <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
-                            ✨ Data Baru
-                        </span>
+                        <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">✨ Data
+                            Baru</span>
                     </div>
                     <div class="overflow-x-auto rounded-xl border border-gray-200">
                         <table class="min-w-full divide-y divide-gray-200">
@@ -259,8 +251,7 @@
                                             </span>
                                         </td>
                                         <td class="px-5 py-4 text-sm text-gray-900 font-medium">
-                                            {{ $item['data']['nama_nasabah'] }}
-                                        </td>
+                                            {{ $item['data']['nama_nasabah'] }}</td>
                                         <td class="px-5 py-4 text-sm text-gray-600">
                                             {{ \Carbon\Carbon::parse($item['data']['tanggal_sewa'])->format('d/m/Y') }}
                                         </td>
@@ -289,9 +280,8 @@
                             </span>
                             <span>Koreksi Data ({{ count($results['update']) }} unit)</span>
                         </h3>
-                        <span class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-semibold">
-                            📝 Update
-                        </span>
+                        <span class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-semibold">📝
+                            Update</span>
                     </div>
                     <div class="overflow-x-auto rounded-xl border border-gray-200">
                         <table class="min-w-full divide-y divide-gray-200">
@@ -410,9 +400,7 @@
                         <input type="text" name="confirmation" x-model="confirmation"
                             class="w-full px-5 py-4 border-3 border-gray-300 rounded-xl focus:border-red-500 focus:ring-4 focus:ring-red-200 font-mono text-lg transition-all"
                             placeholder="Ketik: SAYA YAKIN" autocomplete="off" autofocus>
-                        <p class="text-xs text-gray-500 mt-2">
-                            * Huruf kapital semua, tanpa tanda kutip
-                        </p>
+                        <p class="text-xs text-gray-500 mt-2">* Huruf kapital semua, tanpa tanda kutip</p>
                         @error('confirmation')
                             <p class="text-red-600 text-sm mt-2 font-semibold">{{ $message }}</p>
                         @enderror

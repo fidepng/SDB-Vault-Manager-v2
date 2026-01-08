@@ -17,22 +17,17 @@ class SdbImportController extends Controller
 {
   protected $sdbService;
 
-  // Import action constants
   const ACTION_NEW_RENTAL = 'new_rental';
   const ACTION_CORRECTION = 'correction';
   const ACTION_SKIP = 'skip';
 
-  // Session keys
   const SESSION_PREVIEW = 'import_preview';
   const SESSION_FILENAME = 'import_filename';
   const SESSION_TIMESTAMP = 'import_timestamp';
-
-  // Session timeout (minutes)
   const SESSION_TIMEOUT = 30;
 
-  // Security limits
-  const MAX_FILE_SIZE = 5242880; // 5MB in bytes
-  const MAX_ROWS_LIMIT = 1000;   // Prevent memory exhaustion
+  const MAX_FILE_SIZE = 5242880;
+  const MAX_ROWS_LIMIT = 1000;
 
   public function __construct(SdbUnitService $sdbService)
   {
@@ -40,11 +35,10 @@ class SdbImportController extends Controller
   }
 
   /**
-   * IMPROVED: Export with sanitized filters and logging
+   * Export with sanitized filters and logging
    */
   public function export(Request $request)
   {
-    // Validate filter inputs
     $validator = Validator::make($request->all(), [
       'search' => 'nullable|string|max:255',
       'status' => 'nullable|string|in:kosong,terisi,akan_jatuh_tempo,lewat_jatuh_tempo',
@@ -61,12 +55,10 @@ class SdbImportController extends Controller
         ->with('error', 'Parameter export tidak valid: ' . $validator->errors()->first());
     }
 
-    // Extract validated filters
     $filters = array_filter($validator->validated(), function ($value) {
       return $value !== null && $value !== '';
     });
 
-    // Generate descriptive filename
     $filterSuffix = '';
     if (!empty($filters)) {
       $parts = [];
@@ -84,7 +76,6 @@ class SdbImportController extends Controller
 
     $filename = 'SDB_Export' . $filterSuffix . '_' . now()->format('Ymd_His') . '.xlsx';
 
-    // Log export with details
     SdbLogService::record(
       'EXPORT_DATA',
       sprintf(
@@ -108,18 +99,17 @@ class SdbImportController extends Controller
   }
 
   /**
-   * IMPROVED: Upload with enhanced validation and security
+   * IMPROVED: Upload with comprehensive validation
    */
   public function upload(Request $request)
   {
-    // Validate file upload with strict rules
     try {
       $validated = $request->validate([
         'file' => [
           'required',
           'file',
           'mimes:xlsx,xls,csv',
-          'max:' . (self::MAX_FILE_SIZE / 1024) // Convert to KB for validator
+          'max:' . (self::MAX_FILE_SIZE / 1024)
         ]
       ], [
         'file.required' => 'File wajib dipilih.',
@@ -140,11 +130,10 @@ class SdbImportController extends Controller
     $file = $request->file('file');
     $originalName = $file->getClientOriginalName();
 
-    // Additional MIME type security check
     $mimeType = $file->getMimeType();
     $allowedMimes = [
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-      'application/vnd.ms-excel', // .xls
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
       'text/csv',
       'text/plain'
     ];
@@ -161,16 +150,13 @@ class SdbImportController extends Controller
     }
 
     try {
-      // Store file temporarily with secure naming
       $secureFilename = now()->timestamp . '_' . auth()->id() . '_' . $file->hashName();
       $tempPath = $file->storeAs('temp-imports', $secureFilename);
 
-      // Parse file in preview mode
       $import = new SdbUnitImport(previewMode: true);
       Excel::import($import, $file);
       $results = $import->getResults();
 
-      // SECURITY: Check row count limit
       if ($results['total'] > self::MAX_ROWS_LIMIT) {
         Storage::delete($tempPath);
 
@@ -184,7 +170,6 @@ class SdbImportController extends Controller
           ->with('import_error_type', 'security');
       }
 
-      // Add metadata
       $results['metadata'] = [
         'filename' => $originalName,
         'uploaded_at' => now()->format('d/m/Y H:i:s'),
@@ -193,22 +178,14 @@ class SdbImportController extends Controller
         'total_rows' => $results['total']
       ];
 
-      if (empty($results['errors'])) {
-        // Success: Store in session with timestamp
-        session([
-          self::SESSION_PREVIEW => $results,
-          self::SESSION_FILENAME => $tempPath,
-          self::SESSION_TIMESTAMP => now()
-        ]);
+      // ============================================================
+      // CRITICAL FIX: Check if there are ANY changes to import
+      // ============================================================
+      $hasChanges = count($results['new']) > 0 || count($results['update']) > 0;
+      $hasErrors = count($results['errors']) > 0;
 
-        SdbLogService::record(
-          'IMPORT_PREVIEW',
-          "Preview generated for '{$originalName}': {$results['total']} rows, " .
-            count($results['new']) . " new, " .
-            count($results['update']) . " updates"
-        );
-      } else {
-        // Has errors: Clear session, delete temp file
+      if ($hasErrors) {
+        // Has errors: Delete temp file and show errors
         session()->forget([self::SESSION_PREVIEW, self::SESSION_FILENAME, self::SESSION_TIMESTAMP]);
         Storage::delete($tempPath);
 
@@ -216,7 +193,41 @@ class SdbImportController extends Controller
           'IMPORT_VALIDATION_FAILED',
           "Validation failed for '{$originalName}': " . count($results['errors']) . " errors"
         );
+
+        return view('sdb.import.preview', compact('results'));
       }
+
+      if (!$hasChanges) {
+        // NO CHANGES DETECTED: Early exit with info message
+        Storage::delete($tempPath);
+
+        SdbLogService::record(
+          'IMPORT_NO_CHANGES',
+          "Import aborted for '{$originalName}': No changes detected (all data identical)"
+        );
+
+        return redirect()->route('dashboard')
+          ->with('import_info', '📋 Import dibatalkan: Tidak ada perubahan data yang terdeteksi. Semua data di Excel identik dengan database.')
+          ->with('import_info_details', [
+            'total_rows' => $results['total'],
+            'skipped' => count($results['skipped']),
+            'message' => 'Semua baris dalam file Excel sudah sesuai dengan data di database.'
+          ]);
+      }
+
+      // HAS CHANGES: Store in session for confirmation
+      session([
+        self::SESSION_PREVIEW => $results,
+        self::SESSION_FILENAME => $tempPath,
+        self::SESSION_TIMESTAMP => now()
+      ]);
+
+      SdbLogService::record(
+        'IMPORT_PREVIEW',
+        "Preview generated for '{$originalName}': {$results['total']} rows, " .
+          count($results['new']) . " new, " .
+          count($results['update']) . " updates"
+      );
 
       return view('sdb.import.preview', compact('results'));
     } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
@@ -249,11 +260,10 @@ class SdbImportController extends Controller
   }
 
   /**
-   * IMPROVED: Execute with enhanced transaction safety
+   * Execute import with enhanced transaction safety
    */
   public function execute(Request $request)
   {
-    // Validate confirmation
     $request->validate([
       'confirmation' => 'required|in:SAYA YAKIN'
     ], [
@@ -261,7 +271,6 @@ class SdbImportController extends Controller
       'confirmation.in' => 'Ketik "SAYA YAKIN" dengan benar (huruf kapital semua).'
     ]);
 
-    // Check session validity
     $results = session(self::SESSION_PREVIEW);
     $timestamp = session(self::SESSION_TIMESTAMP);
 
@@ -271,7 +280,6 @@ class SdbImportController extends Controller
         ->with('import_error_type', 'expired');
     }
 
-    // Check timeout
     if (now()->diffInMinutes($timestamp) > self::SESSION_TIMEOUT) {
       $this->cleanupImportSession();
 
@@ -285,7 +293,6 @@ class SdbImportController extends Controller
         ->with('import_error_type', 'expired');
     }
 
-    // Additional safety: verify no errors
     if (!empty($results['errors'])) {
       $this->cleanupImportSession();
 
@@ -294,14 +301,22 @@ class SdbImportController extends Controller
         ->with('import_error_type', 'validation');
     }
 
-    // Execute import in transaction
+    // ADDITIONAL CHECK: Verify there are actual changes to import
+    $hasChanges = count($results['new']) > 0 || count($results['update']) > 0;
+
+    if (!$hasChanges) {
+      $this->cleanupImportSession();
+
+      return redirect()->route('dashboard')
+        ->with('info', 'Import dibatalkan: Tidak ada perubahan data yang terdeteksi.');
+    }
+
     DB::beginTransaction();
 
     try {
       $successCount = 0;
       $errorLog = [];
 
-      // Process new rentals
       foreach ($results['new'] as $item) {
         try {
           $this->processNewRental($item);
@@ -315,7 +330,6 @@ class SdbImportController extends Controller
         }
       }
 
-      // Process corrections
       foreach ($results['update'] as $item) {
         try {
           $this->processCorrection($item);
@@ -329,7 +343,6 @@ class SdbImportController extends Controller
         }
       }
 
-      // Check for execution errors
       if (!empty($errorLog)) {
         DB::rollBack();
 
@@ -344,7 +357,6 @@ class SdbImportController extends Controller
           ->with('import_error_type', 'execution');
       }
 
-      // Success: commit and cleanup
       DB::commit();
 
       SdbLogService::record(
@@ -395,7 +407,7 @@ class SdbImportController extends Controller
   }
 
   /**
-   * Process new rental (using service layer)
+   * Process new rental
    */
   protected function processNewRental(array $item): void
   {
@@ -416,7 +428,7 @@ class SdbImportController extends Controller
   }
 
   /**
-   * Process correction (using service layer)
+   * Process correction
    */
   protected function processCorrection(array $item): void
   {
