@@ -13,10 +13,10 @@
         {{-- ACTION BUTTONS ROW --}}
         <div class="flex items-center gap-3">
             {{-- 
-                CRITICAL FIX: Export button must dynamically build URL with current filters
-                Previous bug: request()->only() was called on page load, not when filters change
+                CRITICAL FIX: Export button now accesses Alpine data directly
+                Uses @click with Alpine's scope to get current filter state
             --}}
-            <button @click="exportWithFilters()"
+            <button @click="exportWithCurrentFilters()"
                 class="group flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition-all shadow-lg shadow-green-500/30"
                 title="Export data ke Excel">
                 <svg class="w-5 h-5 group-hover:animate-bounce" fill="none" stroke="currentColor"
@@ -38,8 +38,7 @@
                             this.fileName = file.name;
                             this.isUploading = true;
                 
-                            // Validate file size before submit
-                            if (file.size > 5242880) { // 5MB in bytes
+                            if (file.size > 5242880) {
                                 alert('File terlalu besar! Maksimal 5MB.');
                                 event.target.value = '';
                                 this.isUploading = false;
@@ -47,7 +46,6 @@
                                 return;
                             }
                 
-                            // Validate file type
                             const validTypes = ['.xlsx', '.xls', '.csv'];
                             const fileExt = '.' + file.name.split('.').pop().toLowerCase();
                             if (!validTypes.includes(fileExt)) {
@@ -376,44 +374,6 @@
         </div>
     </div>
 </div>
-
-{{-- CRITICAL FIX: Add JavaScript function to handle export with dynamic filters --}}
-<script>
-    function exportWithFilters() {
-        // Get current filter values from Alpine.js data
-        const filters = Alpine.store('dashboard') || window.dashboardData?.filters || {};
-
-        // Build query string
-        const params = new URLSearchParams();
-
-        if (filters.search && filters.search.trim() !== '') {
-            params.append('search', filters.search.trim());
-        }
-
-        if (filters.status && filters.status !== '') {
-            params.append('status', filters.status);
-        }
-
-        if (filters.tipe && filters.tipe !== '') {
-            params.append('tipe', filters.tipe);
-        }
-
-        // Build export URL
-        const baseUrl = '{{ route('sdb.export') }}';
-        const exportUrl = params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
-
-        // Debug log (remove in production)
-        console.log('Exporting with filters:', {
-            search: filters.search || 'none',
-            status: filters.status || 'none',
-            tipe: filters.tipe || 'none',
-            url: exportUrl
-        });
-
-        // Trigger download
-        window.location.href = exportUrl;
-    }
-</script>
 
 <style>
     @keyframes shake {

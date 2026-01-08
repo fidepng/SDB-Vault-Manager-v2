@@ -10,6 +10,7 @@ use App\Services\SdbLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Facades\Excel;
 
 class SdbImportController extends Controller
@@ -29,31 +30,43 @@ class SdbImportController extends Controller
   // Session timeout (minutes)
   const SESSION_TIMEOUT = 30;
 
+  // Security limits
+  const MAX_FILE_SIZE = 5242880; // 5MB in bytes
+  const MAX_ROWS_LIMIT = 1000;   // Prevent memory exhaustion
+
   public function __construct(SdbUnitService $sdbService)
   {
     $this->sdbService = $sdbService;
   }
 
   /**
-   * Export data with current filters
-   * 
-   * FIX: Properly capture and validate query parameters
+   * IMPROVED: Export with sanitized filters and logging
    */
   public function export(Request $request)
   {
-    // Validate and sanitize filter inputs
-    $validated = $request->validate([
+    // Validate filter inputs
+    $validator = Validator::make($request->all(), [
       'search' => 'nullable|string|max:255',
       'status' => 'nullable|string|in:kosong,terisi,akan_jatuh_tempo,lewat_jatuh_tempo',
       'tipe' => 'nullable|string|in:B,C'
     ]);
 
-    // Extract only provided filters (remove null values)
-    $filters = array_filter($validated, function ($value) {
+    if ($validator->fails()) {
+      SdbLogService::record(
+        'EXPORT_VALIDATION_FAILED',
+        'Export validation failed: ' . $validator->errors()->first()
+      );
+
+      return redirect()->route('dashboard')
+        ->with('error', 'Parameter export tidak valid: ' . $validator->errors()->first());
+    }
+
+    // Extract validated filters
+    $filters = array_filter($validator->validated(), function ($value) {
       return $value !== null && $value !== '';
     });
 
-    // Generate descriptive filename with filter info
+    // Generate descriptive filename
     $filterSuffix = '';
     if (!empty($filters)) {
       $parts = [];
@@ -71,35 +84,54 @@ class SdbImportController extends Controller
 
     $filename = 'SDB_Export' . $filterSuffix . '_' . now()->format('Ymd_His') . '.xlsx';
 
-    // Log with actual filter values for debugging
+    // Log export with details
     SdbLogService::record(
       'EXPORT_DATA',
       sprintf(
-        'Export executed. Filters applied: %s. Total params: %d',
+        'Export executed. Filters: %s. User: %s',
         !empty($filters) ? json_encode($filters, JSON_UNESCAPED_UNICODE) : 'NONE',
-        count($filters)
+        auth()->user()->name
       )
     );
 
-    // Pass validated filters to export class
-    return Excel::download(new SdbUnitExport($filters), $filename);
+    try {
+      return Excel::download(new SdbUnitExport($filters), $filename);
+    } catch (\Exception $e) {
+      SdbLogService::record(
+        'EXPORT_ERROR',
+        'Export failed: ' . $e->getMessage()
+      );
+
+      return redirect()->route('dashboard')
+        ->with('error', 'Export gagal: ' . $e->getMessage());
+    }
   }
 
   /**
-   * Upload and preview import file
+   * IMPROVED: Upload with enhanced validation and security
    */
   public function upload(Request $request)
   {
-    // Validate file upload
+    // Validate file upload with strict rules
     try {
       $validated = $request->validate([
-        'file' => 'required|file|mimes:xlsx,xls,csv|max:5120'
+        'file' => [
+          'required',
+          'file',
+          'mimes:xlsx,xls,csv',
+          'max:' . (self::MAX_FILE_SIZE / 1024) // Convert to KB for validator
+        ]
       ], [
         'file.required' => 'File wajib dipilih.',
         'file.mimes' => 'Format file harus Excel (.xlsx, .xls) atau CSV (.csv).',
-        'file.max' => 'Ukuran file maksimal 5MB (5120KB).'
+        'file.max' => 'Ukuran file maksimal 5MB.'
       ]);
     } catch (\Illuminate\Validation\ValidationException $e) {
+      SdbLogService::record(
+        'IMPORT_UPLOAD_VALIDATION_FAILED',
+        'File validation failed: ' . $e->validator->errors()->first('file')
+      );
+
       return redirect()->route('dashboard')
         ->with('import_error', $e->validator->errors()->first('file'))
         ->with('import_error_type', 'validation');
@@ -108,21 +140,57 @@ class SdbImportController extends Controller
     $file = $request->file('file');
     $originalName = $file->getClientOriginalName();
 
+    // Additional MIME type security check
+    $mimeType = $file->getMimeType();
+    $allowedMimes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'application/vnd.ms-excel', // .xls
+      'text/csv',
+      'text/plain'
+    ];
+
+    if (!in_array($mimeType, $allowedMimes)) {
+      SdbLogService::record(
+        'IMPORT_INVALID_MIME',
+        "Invalid MIME type detected: {$mimeType} for file '{$originalName}'"
+      );
+
+      return redirect()->route('dashboard')
+        ->with('import_error', 'Tipe file tidak valid. Pastikan file adalah Excel atau CSV asli.')
+        ->with('import_error_type', 'security');
+    }
+
     try {
-      // Store file temporarily for potential re-processing
-      $tempPath = $file->store('temp-imports');
+      // Store file temporarily with secure naming
+      $secureFilename = now()->timestamp . '_' . auth()->id() . '_' . $file->hashName();
+      $tempPath = $file->storeAs('temp-imports', $secureFilename);
 
       // Parse file in preview mode
       $import = new SdbUnitImport(previewMode: true);
       Excel::import($import, $file);
       $results = $import->getResults();
 
+      // SECURITY: Check row count limit
+      if ($results['total'] > self::MAX_ROWS_LIMIT) {
+        Storage::delete($tempPath);
+
+        SdbLogService::record(
+          'IMPORT_ROW_LIMIT_EXCEEDED',
+          "Import rejected: {$results['total']} rows exceeds limit of " . self::MAX_ROWS_LIMIT
+        );
+
+        return redirect()->route('dashboard')
+          ->with('import_error', "File terlalu besar: {$results['total']} baris. Maksimal: " . self::MAX_ROWS_LIMIT . " baris.")
+          ->with('import_error_type', 'security');
+      }
+
       // Add metadata
       $results['metadata'] = [
         'filename' => $originalName,
         'uploaded_at' => now()->format('d/m/Y H:i:s'),
         'uploaded_by' => auth()->user()->name,
-        'filesize' => $this->formatBytes($file->getSize())
+        'filesize' => $this->formatBytes($file->getSize()),
+        'total_rows' => $results['total']
       ];
 
       if (empty($results['errors'])) {
@@ -135,19 +203,18 @@ class SdbImportController extends Controller
 
         SdbLogService::record(
           'IMPORT_PREVIEW',
-          "Import preview generated: {$results['total']} rows, " .
+          "Preview generated for '{$originalName}': {$results['total']} rows, " .
             count($results['new']) . " new, " .
-            count($results['update']) . " updates, " .
-            count($results['skipped']) . " skipped"
+            count($results['update']) . " updates"
         );
       } else {
-        // Has errors: Clear any previous session, delete temp file
+        // Has errors: Clear session, delete temp file
         session()->forget([self::SESSION_PREVIEW, self::SESSION_FILENAME, self::SESSION_TIMESTAMP]);
         Storage::delete($tempPath);
 
         SdbLogService::record(
           'IMPORT_VALIDATION_FAILED',
-          "Import validation failed: " . count($results['errors']) . " errors found in file '{$originalName}'"
+          "Validation failed for '{$originalName}': " . count($results['errors']) . " errors"
         );
       }
 
@@ -161,13 +228,18 @@ class SdbImportController extends Controller
         $errorMessage .= "Baris {$firstError->row()}: " . implode(', ', $firstError->errors());
       }
 
+      SdbLogService::record(
+        'IMPORT_STRUCTURE_ERROR',
+        "Structure validation failed: {$errorMessage}"
+      );
+
       return redirect()->route('dashboard')
         ->with('import_error', $errorMessage)
         ->with('import_error_type', 'structure');
     } catch (\Exception $e) {
       SdbLogService::record(
-        'IMPORT_ERROR',
-        "Import system error: {$e->getMessage()}"
+        'IMPORT_SYSTEM_ERROR',
+        "System error during upload: {$e->getMessage()}"
       );
 
       return redirect()->route('dashboard')
@@ -177,7 +249,7 @@ class SdbImportController extends Controller
   }
 
   /**
-   * Execute validated import
+   * IMPROVED: Execute with enhanced transaction safety
    */
   public function execute(Request $request)
   {
@@ -189,7 +261,7 @@ class SdbImportController extends Controller
       'confirmation.in' => 'Ketik "SAYA YAKIN" dengan benar (huruf kapital semua).'
     ]);
 
-    // Check session data exists and not expired
+    // Check session validity
     $results = session(self::SESSION_PREVIEW);
     $timestamp = session(self::SESSION_TIMESTAMP);
 
@@ -199,24 +271,30 @@ class SdbImportController extends Controller
         ->with('import_error_type', 'expired');
     }
 
-    // Check session timeout
+    // Check timeout
     if (now()->diffInMinutes($timestamp) > self::SESSION_TIMEOUT) {
       $this->cleanupImportSession();
 
+      SdbLogService::record(
+        'IMPORT_SESSION_TIMEOUT',
+        'Import session expired after ' . self::SESSION_TIMEOUT . ' minutes'
+      );
+
       return redirect()->route('dashboard')
-        ->with('error', "Session import kadaluarsa (melebihi " . self::SESSION_TIMEOUT . " menit). Silakan upload file kembali.")
+        ->with('error', "Session kadaluarsa (melebihi " . self::SESSION_TIMEOUT . " menit).")
         ->with('import_error_type', 'expired');
     }
 
-    // Additional safety check: verify no errors in preview
+    // Additional safety: verify no errors
     if (!empty($results['errors'])) {
       $this->cleanupImportSession();
 
       return redirect()->route('dashboard')
-        ->with('error', 'Data mengandung error. Import dibatalkan untuk keamanan.')
+        ->with('error', 'Data mengandung error. Import dibatalkan.')
         ->with('import_error_type', 'validation');
     }
 
+    // Execute import in transaction
     DB::beginTransaction();
 
     try {
@@ -255,8 +333,13 @@ class SdbImportController extends Controller
       if (!empty($errorLog)) {
         DB::rollBack();
 
+        SdbLogService::record(
+          'IMPORT_EXECUTION_FAILED',
+          'Execution failed with ' . count($errorLog) . ' errors'
+        );
+
         return redirect()->route('dashboard')
-          ->with('error', 'Import gagal dieksekusi. Ada error pada ' . count($errorLog) . ' baris data.')
+          ->with('error', 'Import gagal: ' . count($errorLog) . ' baris error.')
           ->with('import_execution_errors', $errorLog)
           ->with('import_error_type', 'execution');
       }
@@ -266,15 +349,16 @@ class SdbImportController extends Controller
 
       SdbLogService::record(
         'IMPORT_EXECUTED',
-        "Import successfully executed: {$successCount} records processed (" .
+        "Import success: {$successCount} records (" .
           count($results['new']) . " new, " .
-          count($results['update']) . " updated)"
+          count($results['update']) . " updated) by " .
+          auth()->user()->name
       );
 
       $this->cleanupImportSession();
 
       return redirect()->route('dashboard')
-        ->with('success', "✅ Import berhasil! {$successCount} data telah diproses.")
+        ->with('success', "✅ Import berhasil! {$successCount} data diproses.")
         ->with('import_success_details', [
           'total' => $successCount,
           'new' => count($results['new']),
@@ -284,35 +368,39 @@ class SdbImportController extends Controller
       DB::rollBack();
 
       SdbLogService::record(
-        'IMPORT_EXECUTION_FAILED',
-        "Import execution failed: {$e->getMessage()}"
+        'IMPORT_EXECUTION_ERROR',
+        "Critical error during execution: {$e->getMessage()}"
       );
 
       return redirect()->route('dashboard')
-        ->with('error', 'Terjadi kesalahan sistem saat eksekusi: ' . $e->getMessage())
+        ->with('error', 'Kesalahan sistem: ' . $e->getMessage())
         ->with('import_error_type', 'system');
     }
   }
 
   /**
-   * Cancel import and cleanup
+   * Cancel import
    */
   public function cancel()
   {
+    SdbLogService::record(
+      'IMPORT_CANCELLED',
+      'Import cancelled by user: ' . auth()->user()->name
+    );
+
     $this->cleanupImportSession();
 
     return redirect()->route('dashboard')
-      ->with('info', 'Import dibatalkan. Data tidak ada yang berubah.');
+      ->with('info', 'Import dibatalkan.');
   }
 
   /**
-   * Process new rental from import
+   * Process new rental (using service layer)
    */
   protected function processNewRental(array $item): void
   {
     $unit = $item['unit'] ?? SdbUnit::where('nomor_sdb', $item['data']['nomor_sdb'])->first();
 
-    // Create physical unit if doesn't exist
     if (!$unit) {
       $unit = SdbUnit::create([
         'nomor_sdb' => $item['data']['nomor_sdb'],
@@ -320,7 +408,6 @@ class SdbImportController extends Controller
       ]);
     }
 
-    // Use service layer for audit trail
     $this->sdbService->startNewRental($unit, [
       'nama_nasabah' => $item['data']['nama_nasabah'],
       'tanggal_sewa' => $item['data']['tanggal_sewa'],
@@ -329,13 +416,12 @@ class SdbImportController extends Controller
   }
 
   /**
-   * Process data correction from import
+   * Process correction (using service layer)
    */
   protected function processCorrection(array $item): void
   {
     $unit = $item['unit'];
 
-    // Use service layer for audit trail
     $this->sdbService->correctTenantData($unit, [
       'nama_nasabah' => $item['data']['nama_nasabah'],
       'tanggal_sewa' => $item['data']['tanggal_sewa'],
@@ -344,7 +430,7 @@ class SdbImportController extends Controller
   }
 
   /**
-   * Cleanup import session and temp files
+   * Cleanup session and temp files
    */
   protected function cleanupImportSession(): void
   {

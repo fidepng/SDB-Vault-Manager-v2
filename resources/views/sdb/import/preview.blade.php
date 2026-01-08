@@ -246,9 +246,11 @@
                                 @foreach ($results['new'] as $index => $item)
                                     <tr class="hover:bg-green-50 transition-colors">
                                         <td class="px-5 py-4 text-sm text-gray-500">{{ $index + 1 }}</td>
-                                        <td
-                                            class="px-5 py-4 text-sm font-mono font-bold text-green-700 bg-green-50 rounded">
-                                            {{ $item['data']['nomor_sdb'] }}
+                                        <td class="px-5 py-4">
+                                            <span
+                                                class="text-sm font-mono font-bold text-green-700 bg-green-50 px-2 py-1 rounded">
+                                                {{ $item['data']['nomor_sdb'] }}
+                                            </span>
                                         </td>
                                         <td class="px-5 py-4">
                                             <span

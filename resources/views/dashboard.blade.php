@@ -1053,6 +1053,45 @@
                     this.applyFilters();
                 },
 
+                /**
+                 * CRITICAL FIX: Export with current filter state
+                 * This method is called from sdb-search-filter.blade.php
+                 */
+                exportWithCurrentFilters() {
+                    // Get current filter values from Alpine component state
+                    const currentFilters = {
+                        search: this.filters.search ? this.filters.search.trim() : '',
+                        status: this.filters.status || '',
+                        tipe: this.filters.tipe || ''
+                    };
+
+                    // Build query string
+                    const params = new URLSearchParams();
+
+                    if (currentFilters.search !== '') {
+                        params.append('search', currentFilters.search);
+                    }
+
+                    if (currentFilters.status !== '') {
+                        params.append('status', currentFilters.status);
+                    }
+
+                    if (currentFilters.tipe !== '') {
+                        params.append('tipe', currentFilters.tipe);
+                    }
+
+                    // Build export URL
+                    const baseUrl = '{{ route('sdb.export') }}';
+                    const exportUrl = params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
+
+                    // Debug log (optional - remove in production)
+                    console.log('[EXPORT] Filter state:', currentFilters);
+                    console.log('[EXPORT] URL:', exportUrl);
+
+                    // Trigger download
+                    window.location.href = exportUrl;
+                },
+
                 getTotalUnitsByType(type) {
                     if (!this.sdbLayouts[type]) return 0;
                     return this.sdbLayouts[type].grid.flat().length;

@@ -17,6 +17,10 @@ class SdbUnitImport implements ToCollection, WithHeadingRow, WithValidation
   const ACTION_UPDATE = 'correction';
   const ACTION_SKIP = 'skip';
 
+  // CRITICAL: Business rule constants
+  const RENTAL_DURATION_YEARS = 1;
+  const RENTAL_DURATION_DAYS = 365; // For validation tolerance
+
   protected $previewMode = true;
   protected $results = [
     'total' => 0,
@@ -75,46 +79,22 @@ class SdbUnitImport implements ToCollection, WithHeadingRow, WithValidation
   }
 
   /**
-   * FIXED: Apply strict business rules with proper detection
-   * 
-   * KEY FIX: Check if unit exists in DB FIRST before categorizing
+   * CRITICAL FIX: Business Rules with 1-Year Rental Enforcement
    */
   protected function applyStrictRules($data, $existingUnit, $rowNumber)
   {
     $excelHasName = !empty($data['nama_nasabah']);
-
-    // CRITICAL FIX: Check if unit exists AND has rental data
     $dbExists = $existingUnit !== null;
     $dbIsRented = $dbExists && !empty($existingUnit->nama_nasabah);
 
-    // RULE 1: Data Integrity - If name exists, dates must be complete and valid
+    // RULE 1: Data Integrity - If name exists, validate rental period
     if ($excelHasName) {
       if (empty($data['tanggal_sewa'])) {
         throw new \Exception("Data tidak lengkap: Nama Nasabah terisi, tetapi Tanggal Sewa kosong.");
       }
 
-      if (empty($data['tanggal_jatuh_tempo'])) {
-        throw new \Exception("Data tidak lengkap: Nama Nasabah terisi, tetapi Tanggal Jatuh Tempo kosong.");
-      }
-
-      // Validate date logic
-      $start = Carbon::parse($data['tanggal_sewa']);
-      $end = Carbon::parse($data['tanggal_jatuh_tempo']);
-
-      if ($end->lessThanOrEqualTo($start)) {
-        throw new \Exception(
-          "Logika tanggal salah: Jatuh Tempo ({$end->format('d/m/Y')}) " .
-            "harus setelah Tanggal Sewa ({$start->format('d/m/Y')})."
-        );
-      }
-
-      // Business rule: minimum rental 1 month
-      if ($start->diffInDays($end) < 30) {
-        throw new \Exception(
-          "Durasi sewa minimal 1 bulan (30 hari). " .
-            "Durasi saat ini: {$start->diffInDays($end)} hari."
-        );
-      }
+      // CRITICAL CHANGE: Validate 1-year rental period
+      $this->validateRentalPeriod($data, $rowNumber);
     }
 
     // RULE 2: Data Protection - Cannot empty rented unit via import
@@ -125,13 +105,7 @@ class SdbUnitImport implements ToCollection, WithHeadingRow, WithValidation
       );
     }
 
-    // ============================================================
-    // CRITICAL FIX FOR ISSUE #2: 
-    // Prioritize checking if DB unit is rented FIRST
-    // ============================================================
-
     // RULE 3: Data Correction (Unit Already Rented -> Update)
-    // This MUST be checked BEFORE "new rental" logic
     if ($dbIsRented && $excelHasName) {
       $changes = $this->detectChanges($existingUnit, $data);
 
@@ -153,13 +127,12 @@ class SdbUnitImport implements ToCollection, WithHeadingRow, WithValidation
     }
 
     // RULE 4: New Rental (Empty Unit -> Filled)
-    // Only reaches here if unit is NOT rented
     if (!$dbIsRented && $excelHasName) {
       return [
         'action' => self::ACTION_NEW,
         'row' => $rowNumber,
         'data' => $data,
-        'unit' => $existingUnit // Could be null if physical unit doesn't exist
+        'unit' => $existingUnit
       ];
     }
 
@@ -172,7 +145,7 @@ class SdbUnitImport implements ToCollection, WithHeadingRow, WithValidation
       ];
     }
 
-    // Fallback (should never reach here with proper logic)
+    // Fallback
     return [
       'action' => self::ACTION_SKIP,
       'row' => $rowNumber,
@@ -181,17 +154,75 @@ class SdbUnitImport implements ToCollection, WithHeadingRow, WithValidation
   }
 
   /**
-   * Normalize row data with proper trimming and parsing
+   * CRITICAL NEW METHOD: Validate 1-Year Rental Period
+   * 
+   * Business Rule: Bank SDB contracts are ALWAYS exactly 1 year.
+   * Excel must provide EITHER:
+   * 1. Only tanggal_sewa (system auto-calculates +1 year)
+   * 2. Both dates with exactly 1 year duration (±7 days tolerance)
+   */
+  protected function validateRentalPeriod($data, $rowNumber): void
+  {
+    $start = Carbon::parse($data['tanggal_sewa'])->startOfDay();
+
+    // Case 1: Only start date provided (RECOMMENDED)
+    if (empty($data['tanggal_jatuh_tempo'])) {
+      // Auto-calculate 1 year - consistent with manual input
+      $data['tanggal_jatuh_tempo'] = $start->copy()->addYear()->format('Y-m-d');
+      return; // Valid case
+    }
+
+    // Case 2: Both dates provided - validate duration
+    $end = Carbon::parse($data['tanggal_jatuh_tempo'])->startOfDay();
+
+    // Basic chronological validation
+    if ($end->lessThanOrEqualTo($start)) {
+      throw new \Exception(
+        "Logika tanggal salah: Jatuh Tempo ({$end->format('d/m/Y')}) " .
+          "harus setelah Tanggal Sewa ({$start->format('d/m/Y')})."
+      );
+    }
+
+    // CRITICAL: Validate 1-year duration
+    $expectedEnd = $start->copy()->addYear();
+    $daysDifference = $end->diffInDays($expectedEnd, false); // signed difference
+
+    // Allow ±7 days tolerance for leap years and month variations
+    $tolerance = 7;
+
+    if (abs($daysDifference) > $tolerance) {
+      $actualDuration = $start->diffInDays($end);
+
+      throw new \Exception(
+        "DURASI SEWA TIDAK VALID: Sistem hanya menerima sewa 1 tahun. " .
+          "Tanggal Sewa: {$start->format('d/m/Y')}, " .
+          "Jatuh Tempo: {$end->format('d/m/Y')} " .
+          "(Durasi: {$actualDuration} hari, Seharusnya: ~365 hari). " .
+          "SOLUSI: Kosongkan kolom Jatuh Tempo, biarkan sistem kalkulasi otomatis."
+      );
+    }
+  }
+
+  /**
+   * IMPROVED: Normalize row data with auto-calculation support
    */
   protected function normalizeRowData($row, $rowNumber)
   {
-    return [
+    $normalized = [
       'nomor_sdb' => $this->normalizeNomorSdb($row['nomor_sdb']),
       'tipe' => strtoupper(trim($row['tipe'] ?? '')),
       'nama_nasabah' => $this->normalizeName($row['nama_nasabah'] ?? ''),
       'tanggal_sewa' => $this->parseDate($row['tanggal_sewa'] ?? null, 'Tanggal Sewa', $rowNumber),
       'tanggal_jatuh_tempo' => $this->parseDate($row['tanggal_jatuh_tempo'] ?? null, 'Tanggal Jatuh Tempo', $rowNumber),
     ];
+
+    // CRITICAL: Auto-calculate jatuh tempo if only start date provided
+    if (!empty($normalized['nama_nasabah']) && !empty($normalized['tanggal_sewa']) && empty($normalized['tanggal_jatuh_tempo'])) {
+      $start = Carbon::parse($normalized['tanggal_sewa']);
+      $normalized['tanggal_jatuh_tempo'] = $start->copy()->addYear()->format('Y-m-d');
+    }
+
+    return $normalized;
   }
 
   /**
@@ -201,12 +232,10 @@ class SdbUnitImport implements ToCollection, WithHeadingRow, WithValidation
   {
     $cleaned = preg_replace('/[^0-9]/', '', trim($value));
 
-    // Validate not empty after cleaning
     if (empty($cleaned)) {
       throw new \Exception("Nomor SDB tidak valid (kosong atau tidak mengandung angka)");
     }
 
-    // Validate not too long
     if (strlen($cleaned) > 3) {
       throw new \Exception("Nomor SDB terlalu panjang: '{$value}'. Maksimal 3 digit.");
     }
@@ -221,17 +250,15 @@ class SdbUnitImport implements ToCollection, WithHeadingRow, WithValidation
   {
     $trimmed = trim($value);
 
-    // Return empty if truly empty
     if ($trimmed === '' || $trimmed === '-' || strtolower($trimmed) === 'null') {
       return '';
     }
 
-    // Apply title case for proper names
     return mb_convert_case($trimmed, MB_CASE_TITLE, 'UTF-8');
   }
 
   /**
-   * Robust date parsing supporting multiple formats
+   * IMPROVED: Robust date parsing with better error messages
    */
   protected function parseDate($value, string $fieldName, int $rowNumber): ?string
   {
@@ -240,45 +267,41 @@ class SdbUnitImport implements ToCollection, WithHeadingRow, WithValidation
     }
 
     try {
-      // Case 1: Excel serial number (numeric)
+      // Case 1: Excel serial number
       if (is_numeric($value) && $value > 0) {
-        // Validate serial number range (Excel dates start from 1900)
-        if ($value < 1 || $value > 2958465) { // 31 Dec 9999
+        if ($value < 1 || $value > 2958465) {
           throw new \Exception("Serial number Excel tidak valid: {$value}");
         }
         return Date::excelToDateTimeObject($value)->format('Y-m-d');
       }
 
-      // Case 2: String date - try multiple formats
+      // Case 2: String date formats
       $formats = [
-        'Y-m-d',        // 2024-12-31 (ISO standard)
-        'd/m/Y',        // 31/12/2024 (Indonesian format)
-        'd-m-Y',        // 31-12-2024
-        'm/d/Y',        // 12/31/2024 (US format)
-        'Y/m/d',        // 2024/12/31
-        'd.m.Y',        // 31.12.2024 (European)
+        'Y-m-d',   // 2024-12-31
+        'd/m/Y',   // 31/12/2024
+        'd-m-Y',   // 31-12-2024
+        'm/d/Y',   // 12/31/2024
+        'Y/m/d',   // 2024/12/31
+        'd.m.Y',   // 31.12.2024
       ];
 
       foreach ($formats as $format) {
         try {
           $parsed = Carbon::createFromFormat($format, trim($value));
           if ($parsed !== false && !$parsed->hasError()) {
-            // Validate date is reasonable (not too far in past/future)
-            $now = Carbon::now();
             if ($parsed->year < 1990 || $parsed->year > 2100) {
               throw new \Exception("Tahun tidak valid: {$parsed->year}");
             }
             return $parsed->format('Y-m-d');
           }
         } catch (\Exception $e) {
-          continue; // Try next format
+          continue;
         }
       }
 
-      // Fallback: Let Carbon try to parse it intelligently
+      // Fallback: Carbon intelligent parsing
       $carbonParsed = Carbon::parse($value);
 
-      // Validate reasonable date range
       if ($carbonParsed->year < 1990 || $carbonParsed->year > 2100) {
         throw new \Exception("Tahun tidak valid: {$carbonParsed->year}");
       }
@@ -287,18 +310,18 @@ class SdbUnitImport implements ToCollection, WithHeadingRow, WithValidation
     } catch (\Exception $e) {
       throw new \Exception(
         "Format {$fieldName} tidak valid: '{$value}'. " .
-          "Gunakan format: YYYY-MM-DD, DD/MM/YYYY, atau serial number Excel. " .
+          "Gunakan format: YYYY-MM-DD, DD/MM/YYYY, atau biarkan kosong untuk auto-kalkulasi. " .
           "Contoh: 2024-12-31 atau 31/12/2024"
       );
     }
   }
 
   /**
-   * Validate basic format requirements
+   * IMPROVED: Validate basic format with better error messages
    */
   protected function validateBasicFormat($data, $rowNumber): void
   {
-    // Validate nomor SDB format (already validated in normalize, but double-check)
+    // Validate nomor SDB
     if (!preg_match('/^\d{3}$/', $data['nomor_sdb'])) {
       throw new \Exception(
         "Format Nomor SDB tidak valid: '{$data['nomor_sdb']}'. " .
@@ -332,7 +355,6 @@ class SdbUnitImport implements ToCollection, WithHeadingRow, WithValidation
         );
       }
 
-      // Validate name contains letters (not just numbers/symbols)
       if (!preg_match('/[a-zA-Z]/', $data['nama_nasabah'])) {
         throw new \Exception(
           "Nama Nasabah harus mengandung huruf. " .
@@ -343,13 +365,13 @@ class SdbUnitImport implements ToCollection, WithHeadingRow, WithValidation
   }
 
   /**
-   * ENHANCED: Detect changes with better comparison
+   * IMPROVED: Better change detection with date normalization
    */
   protected function detectChanges($unit, $data)
   {
     $changes = [];
 
-    // Compare name (case insensitive trim)
+    // Compare name (case insensitive)
     $dbName = trim($unit->nama_nasabah);
     $excelName = trim($data['nama_nasabah']);
 
@@ -360,7 +382,7 @@ class SdbUnitImport implements ToCollection, WithHeadingRow, WithValidation
       ];
     }
 
-    // Compare dates (normalized to Y-m-d format)
+    // Compare dates (normalized to Y-m-d)
     $dbTglSewa = $unit->tanggal_sewa
       ? Carbon::parse($unit->tanggal_sewa)->format('Y-m-d')
       : null;
@@ -383,7 +405,7 @@ class SdbUnitImport implements ToCollection, WithHeadingRow, WithValidation
       ];
     }
 
-    // Also compare tipe (in case it was corrected)
+    // Compare tipe
     if ($unit->tipe !== $data['tipe']) {
       $changes['tipe'] = [
         'old' => $unit->tipe,
@@ -413,7 +435,7 @@ class SdbUnitImport implements ToCollection, WithHeadingRow, WithValidation
   }
 
   /**
-   * Laravel Excel validation rules for headers
+   * Laravel Excel validation rules
    */
   public function rules(): array
   {
