@@ -2,7 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Alpine.js x-cloak utility */
+/* Prevent flash of unstyled content (FOUC) */
 [x-cloak] {
     display: none !important;
+}
+
+/* Smooth height transitions */
+.transition-height {
+    transition: height 0.3s ease-in-out;
 }

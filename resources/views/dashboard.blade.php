@@ -777,21 +777,20 @@
                 },
 
                 cancelEdit() {
-                    console.log('[DEBUG] cancelEdit called');
-                    console.log('[DEBUG] selectedSdb BEFORE:', JSON.stringify(this.selectedSdb));
-
+                    // CRITICAL FIX: Reset editMode first BEFORE clearing formData
+                    // This prevents Alpine from trying to sync stale formData to UI
                     this.editMode = false;
 
-                    console.log('[DEBUG] editMode set to false');
-                    console.log('[DEBUG] selectedSdb AFTER:', JSON.stringify(this.selectedSdb));
-
-                    this.formData = {
-                        nama_nasabah: '',
-                        tanggal_sewa: '',
-                        tanggal_jatuh_tempo: '',
-                        nomor_sdb: '',
-                        tipe: ''
-                    };
+                    // Wait for DOM to update before clearing form
+                    this.$nextTick(() => {
+                        this.formData = {
+                            nama_nasabah: '',
+                            tanggal_sewa: '',
+                            tanggal_jatuh_tempo: '',
+                            nomor_sdb: '',
+                            tipe: ''
+                        };
+                    });
                 },
 
                 async saveData() {

@@ -84,7 +84,7 @@
     </div>
 
     {{-- KONTEN PANEL --}}
-    <div class="flex-1 p-8 overflow-y-auto">
+    <div class="flex-1 p-8 overflow-y-auto flex flex-col">
         {{--
         <div
             x-show="new Date(selectedSdb.tanggal_sewa) > new Date()"
@@ -97,7 +97,7 @@
 
         {{-- Default State --}}
         <template x-if="!selectedSdb">
-            <div class="flex flex-col items-center justify-center text-center text-gray-500 h-full">
+            <div class="flex-1 flex flex-col items-center justify-center text-center text-gray-500">
                 <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-full p-8 mb-6 shadow-inner">
                     <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
@@ -120,12 +120,11 @@
             {{-- CONTAINER UTAMA DENGAN PROPER SPACING --}}
             <div class="space-y-4">
 
-                {{-- SECTION 1: INFO CARD --}}
-                <div x-show="selectedSdb?.status !== 'kosong' || editMode"
-                    x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95"
-                    x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-150"
-                    x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
-                    class="bg-gradient-to-br from-white to-gray-50/50 rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
+                {{-- SECTION 1: INFO CARD - OPTIMIZED --}}
+                <div x-show="selectedSdb?.status !== 'kosong' || editMode" x-cloak
+                    x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-98"
+                    x-transition:enter-end="opacity-100 scale-100"
+                    class="bg-gradient-to-br from-white to-gray-50/50 rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
 
                     {{-- Header Strip --}}
                     <div class="h-1.5 w-full"
@@ -137,10 +136,10 @@
                         }">
                     </div>
 
-                    {{-- Content Area --}}
-                    <div class="p-6 space-y-5">
+                    {{-- Content Area - ZERO TRANSITION INSIDE --}}
+                    <div class="p-6 space-y-6">
 
-                        {{-- 1. NAMA NASABAH --}}
+                        {{-- 1. NAMA NASABAH - NO ANIMATION --}}
                         <div class="group relative">
                             <div class="flex items-center justify-between mb-2">
                                 <label
@@ -154,10 +153,9 @@
                                 </label>
 
                                 <button x-show="!editMode && selectedSdb?.status !== 'kosong'" @click="initFormData()"
-                                    class="opacity-0 group-hover:opacity-100 transition-all duration-200 p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600"
+                                    class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600"
                                     title="Edit Data">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor"
-                                        viewBox="0 0 24 24">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
                                         </path>
@@ -165,22 +163,29 @@
                                 </button>
                             </div>
 
-                            <div x-show="!editMode"
-                                class="block w-full text-lg font-bold text-gray-900 px-2 py-1.5 rounded-xl hover:bg-gray-50 transition-colors min-h-[44px] flex items-center"
-                                x-text="selectedSdb?.nama_nasabah || 'Masukkan Nama Nasabah'">
-                            </div>
+                            {{-- CONTAINER TETAP (NO HEIGHT CHANGE) --}}
+                            <div class="relative min-h-[48px]">
+                                {{-- View Mode - ABSOLUTE POSITION --}}
+                                <div x-show="!editMode" x-cloak
+                                    class="absolute inset-0 flex items-center px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors">
+                                    <span class="text-lg font-bold text-gray-900"
+                                        x-text="selectedSdb?.nama_nasabah || 'Masukkan Nama Nasabah'">
+                                    </span>
+                                </div>
 
-                            <input x-show="editMode" type="text" x-model="formData.nama_nasabah"
-                                class="block w-full text-lg font-bold bg-white border-2 border-blue-300 text-gray-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 focus:outline-none px-4 py-3 rounded-xl transition-all duration-200"
-                                placeholder="Masukkan Nama Nasabah">
+                                {{-- Edit Mode - ABSOLUTE POSITION --}}
+                                <input x-show="editMode" x-cloak type="text" x-model="formData.nama_nasabah"
+                                    class="absolute inset-0 w-full text-lg font-bold bg-white border-2 border-blue-300 text-gray-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 focus:outline-none px-4 py-2 rounded-xl"
+                                    placeholder="Masukkan Nama Nasabah">
+                            </div>
                         </div>
 
-                        {{-- 2. TANGGAL --}}
+                        {{-- 2. TANGGAL - SIMPLIFIED --}}
                         <div class="grid grid-cols-2 gap-4">
-
+                            {{-- Tanggal Mulai --}}
                             <div>
                                 <label
-                                    class="text-[9px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5 block flex items-center gap-1">
+                                    class="text-[9px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 block flex items-center gap-1">
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
@@ -189,18 +194,23 @@
                                     Mulai
                                 </label>
 
-                                <div x-show="!editMode"
-                                    class="block w-full text-sm font-semibold bg-gray-50 border border-gray-200 text-gray-700 px-3 py-2 rounded-lg"
-                                    x-text="selectedSdb?.tanggal_sewa ? new Date(selectedSdb.tanggal_sewa).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: 'numeric'}) : '-'">
-                                </div>
+                                <div class="relative min-h-[44px]">
+                                    {{-- View --}}
+                                    <div x-show="!editMode" x-cloak
+                                        class="absolute inset-0 flex items-center text-sm font-semibold bg-gray-50 border border-gray-200 text-gray-700 px-3 rounded-lg"
+                                        x-text="selectedSdb?.tanggal_sewa ? new Date(selectedSdb.tanggal_sewa).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: 'numeric'}) : '-'">
+                                    </div>
 
-                                <input x-show="editMode" type="date" x-model="formData.tanggal_sewa"
-                                    class="block w-full text-sm font-semibold bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-lg transition-all">
+                                    {{-- Edit --}}
+                                    <input x-show="editMode" x-cloak type="date" x-model="formData.tanggal_sewa"
+                                        class="absolute inset-0 w-full text-sm font-semibold bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-lg px-3">
+                                </div>
                             </div>
 
+                            {{-- Tanggal Jatuh Tempo --}}
                             <div>
                                 <label
-                                    class="text-[9px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5 block flex items-center gap-1">
+                                    class="text-[9px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 block flex items-center gap-1">
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -208,42 +218,49 @@
                                     Jatuh Tempo
                                 </label>
 
-                                <div x-show="!editMode" class="block w-full text-sm font-bold px-3 py-2 rounded-lg"
-                                    :class="{
-                                        'bg-red-50 border border-red-200 text-red-700': selectedSdb
-                                            ?.status === 'lewat_jatuh_tempo',
-                                        'bg-yellow-50 border border-yellow-200 text-yellow-700': selectedSdb
-                                            ?.status === 'akan_jatuh_tempo',
-                                        'bg-gray-50 border border-gray-200 text-gray-600': selectedSdb
-                                            ?.status === 'terisi'
-                                    }"
-                                    x-text="selectedSdb?.tanggal_jatuh_tempo ? new Date(selectedSdb.tanggal_jatuh_tempo).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: 'numeric'}) : '-'">
+                                <div class="relative min-h-[44px]">
+                                    {{-- View --}}
+                                    <div x-show="!editMode" x-cloak
+                                        class="absolute inset-0 flex items-center text-sm font-bold px-3 rounded-lg"
+                                        :class="{
+                                            'bg-red-50 border border-red-200 text-red-700': selectedSdb
+                                                ?.status === 'lewat_jatuh_tempo',
+                                            'bg-yellow-50 border border-yellow-200 text-yellow-700': selectedSdb
+                                                ?.status === 'akan_jatuh_tempo',
+                                            'bg-gray-50 border border-gray-200 text-gray-600': selectedSdb
+                                                ?.status === 'terisi'
+                                        }"
+                                        x-text="selectedSdb?.tanggal_jatuh_tempo ? new Date(selectedSdb.tanggal_jatuh_tempo).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: 'numeric'}) : '-'">
+                                    </div>
+
+                                    {{-- Edit --}}
+                                    <input x-show="editMode" x-cloak type="date"
+                                        x-model="formData.tanggal_jatuh_tempo" disabled
+                                        class="absolute inset-0 w-full text-sm font-bold rounded-lg cursor-not-allowed bg-gray-50 border-gray-200 text-gray-600 px-3">
                                 </div>
-
-                                <input x-show="editMode" type="date" x-model="formData.tanggal_jatuh_tempo"
-                                    disabled
-                                    class="block w-full text-sm font-bold rounded-lg cursor-not-allowed bg-gray-50 border-gray-200 text-gray-600">
-
-                                <p x-show="editMode" x-transition
-                                    class="text-[10px] text-blue-600 mt-1.5 flex items-center gap-1">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                                    </svg>
-                                    Otomatis 1 tahun dari tanggal sewa
-                                </p>
                             </div>
+                        </div>
+
+                        {{-- Info Text - ALWAYS VISIBLE IN EDIT MODE (NO ABSOLUTE) --}}
+                        <div x-show="editMode" x-cloak class="pt-1">
+                            <p class="text-[10px] text-blue-600 flex items-center gap-1.5">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                </svg>
+                                <span>Otomatis 1 tahun dari tanggal sewa</span>
+                            </p>
                         </div>
 
                     </div>
                 </div>
 
-                {{-- Empty State --}}
+                {{-- Empty State - UNCHANGED --}}
                 <div x-show="selectedSdb?.status === 'kosong' && !editMode"
                     x-transition:enter="transition ease-out duration-300"
                     x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
                     class="text-center py-10">
-
+                    <!-- Content sama seperti sebelumnya -->
                     <div class="relative inline-flex items-center justify-center mb-6">
                         <div class="absolute inset-0 rounded-full bg-blue-100 animate-ping opacity-20"></div>
                         <div
@@ -256,24 +273,14 @@
                             </svg>
                         </div>
                     </div>
-
-                    <h4 class="text-lg font-bold text-gray-800 mb-2">
-                        Safe Deposit Box Tersedia
-                    </h4>
+                    <h4 class="text-lg font-bold text-gray-800 mb-2">Safe Deposit Box Tersedia</h4>
                     <p class="text-sm text-gray-500 max-w-[220px] mx-auto leading-relaxed">
                         Unit ini belum memiliki penyewa aktif. Klik tombol di bawah untuk memulai kontrak baru.
                     </p>
                 </div>
 
-                {{-- SECTION 2: ACTION BUTTONS (SEPARATED WITH PROPER SPACING) --}}
-
-                {{-- A. MODE EDIT (Save/Cancel) --}}
-                <div x-show="editMode" x-transition:enter="transition ease-out duration-200"
-                    x-transition:enter-start="opacity-0 translate-y-2"
-                    x-transition:enter-end="opacity-100 translate-y-0"
-                    x-transition:leave="transition ease-in duration-150"
-                    x-transition:leave-start="opacity-100 translate-y-0"
-                    x-transition:leave-end="opacity-0 translate-y-2" class="flex items-center gap-2.5">
+                {{-- SECTION 2: ACTION BUTTONS - REMOVE ALL TRANSITIONS --}}
+                <div x-show="editMode" x-cloak class="flex items-center gap-2.5">
 
                     <button @click="cancelEdit()"
                         class="flex-1 px-4 py-2.5 bg-white border-2 border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 hover:border-gray-400 active:scale-95 focus:outline-none focus:ring-4 focus:ring-gray-200 transition-all duration-150">
@@ -298,13 +305,7 @@
                     </button>
                 </div>
 
-                {{-- B. MODE VIEW (Normal Actions) - FIXED BLINKING --}}
-                <div x-show="!editMode" x-cloak x-transition:enter="transition ease-out duration-200 delay-100"
-                    x-transition:enter-start="opacity-0 translate-y-2"
-                    x-transition:enter-end="opacity-100 translate-y-0"
-                    x-transition:leave="transition ease-in duration-100"
-                    x-transition:leave-start="opacity-100 translate-y-0"
-                    x-transition:leave-end="opacity-0 translate-y-2" class="space-y-3">
+                <div x-show="!editMode" x-cloak class="space-y-3">
 
                     {{-- Status KOSONG --}}
                     <template x-if="selectedSdb?.status === 'kosong'">
