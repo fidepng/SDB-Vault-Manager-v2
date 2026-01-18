@@ -90,6 +90,10 @@ Route::middleware(['auth', 'super_admin'])->prefix('admin')->group(function () {
     // 2. System Audit Logs
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
 
+    // Export Audit Logs (Compliance Feature)
+    Route::get('/audit-logs/export', [AuditLogController::class, 'export'])->name('audit-logs.export');
+
+
     // 3. FASE 5: IMPORT DATA EXCEL (SUPER ADMIN ONLY)
     Route::post('/import/upload', [SdbImportController::class, 'upload'])->name('import.upload');
     Route::post('/import/execute', [SdbImportController::class, 'execute'])->name('import.execute');

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Carbon\Carbon;
 use App\Models\SdbUnit;
 use Illuminate\Http\Request;
+use App\Services\AuditService;
 use App\Models\SdbRentalHistory;
 use App\Services\SdbUnitService;
 use Illuminate\Support\Facades\DB;
@@ -274,15 +275,18 @@ class SdbController extends Controller
      */
     public function getHistory(SdbUnit $sdbUnit)
     {
+        // ✅ LOGGING DITAMBAHKAN - Track siapa yang membuka history
+        AuditService::logAccess(
+            'SDB_HISTORY',
+            $sdbUnit->id,
+            'VIEW'
+        );
+
         $rentalHistories = $sdbUnit->rentalHistories()->latest()->get();
         $visits = $sdbUnit->visits()->with('petugas')->latest()->get();
 
         if ($sdbUnit->nama_nasabah) {
-            // Gunakan Accessor dari Model, JANGAN hitung manual lagi disini
-            // Ini menjamin konsistensi antara warna grid dashboard dan status di modal
             $statusStr = strtoupper($sdbUnit->status_text);
-
-            // Generate catatan berdasarkan status model
             $catatanStr = match ($sdbUnit->status) {
                 SdbUnit::STATUS_LEWAT_JATUH_TEMPO => 'Nasabah menunggak / lewat jatuh tempo.',
                 SdbUnit::STATUS_AKAN_JATUH_TEMPO => 'Masa sewa akan segera berakhir.',

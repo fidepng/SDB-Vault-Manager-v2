@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use Illuminate\View\View;
 use Illuminate\Http\Request;
+use App\Services\AuditService;
 use App\Services\SdbLogService;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
@@ -25,11 +26,21 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        $request->authenticate();
+        try {
+            $request->authenticate();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // ✅ LOG FAILED LOGIN
+            AuditService::logFailedLogin(
+                $request->input('email'),
+                'Invalid credentials'
+            );
+
+            throw $e;
+        }
 
         $request->session()->regenerate();
 
-        // [BARU] Catat Log Login
+        // Log successful login (sudah ada)
         SdbLogService::record(
             'LOGIN',
             'User berhasil masuk ke sistem.'

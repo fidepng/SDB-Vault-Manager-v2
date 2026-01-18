@@ -2,16 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Imports\SdbUnitImport;
-use App\Exports\SdbUnitExport;
 use App\Models\SdbUnit;
-use App\Services\SdbUnitService;
-use App\Services\SdbLogService;
 use Illuminate\Http\Request;
+use App\Exports\SdbUnitExport;
+use App\Imports\SdbUnitImport;
+use App\Services\AuditService;
+use App\Services\SdbLogService;
+use App\Services\SdbUnitService;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
-use Maatwebsite\Excel\Facades\Excel;
 
 class SdbImportController extends Controller
 {
@@ -35,7 +36,7 @@ class SdbImportController extends Controller
   }
 
   /**
-   * Export with sanitized filters and logging
+   * Export dengan logging
    */
   public function export(Request $request)
   {
@@ -46,11 +47,6 @@ class SdbImportController extends Controller
     ]);
 
     if ($validator->fails()) {
-      SdbLogService::record(
-        'EXPORT_VALIDATION_FAILED',
-        'Export validation failed: ' . $validator->errors()->first()
-      );
-
       return redirect()->route('dashboard')
         ->with('error', 'Parameter export tidak valid: ' . $validator->errors()->first());
     }
@@ -59,68 +55,35 @@ class SdbImportController extends Controller
       return $value !== null && $value !== '';
     });
 
-    $filterSuffix = '';
-    if (!empty($filters)) {
-      $parts = [];
-      if (isset($filters['status'])) {
-        $parts[] = ucfirst($filters['status']);
-      }
-      if (isset($filters['tipe'])) {
-        $parts[] = 'Tipe' . $filters['tipe'];
-      }
-      if (isset($filters['search'])) {
-        $parts[] = 'Search';
-      }
-      $filterSuffix = '_' . implode('_', $parts);
-    }
+    $filename = 'SDB_Export_' . now()->format('Ymd_His') . '.xlsx';
 
-    $filename = 'SDB_Export' . $filterSuffix . '_' . now()->format('Ymd_His') . '.xlsx';
-
-    SdbLogService::record(
-      'EXPORT_DATA',
-      sprintf(
-        'Export executed. Filters: %s. User: %s',
-        !empty($filters) ? json_encode($filters, JSON_UNESCAPED_UNICODE) : 'NONE',
-        auth()->user()->name
-      )
-    );
+    // ✅ LOGGING DITAMBAHKAN
+    $recordCount = $this->getExportRecordCount($filters);
+    AuditService::logExport('Excel', $filters, $recordCount);
 
     try {
       return Excel::download(new SdbUnitExport($filters), $filename);
     } catch (\Exception $e) {
-      SdbLogService::record(
-        'EXPORT_ERROR',
-        'Export failed: ' . $e->getMessage()
-      );
-
+      AuditService::log('EXPORT_ERROR', 'Export failed: ' . $e->getMessage());
       return redirect()->route('dashboard')
         ->with('error', 'Export gagal: ' . $e->getMessage());
     }
   }
 
   /**
-   * IMPROVED: Upload with comprehensive validation
+   * Upload dengan logging
    */
   public function upload(Request $request)
   {
     try {
       $validated = $request->validate([
-        'file' => [
-          'required',
-          'file',
-          'mimes:xlsx,xls,csv',
-          'max:' . (self::MAX_FILE_SIZE / 1024)
-        ]
-      ], [
-        'file.required' => 'File wajib dipilih.',
-        'file.mimes' => 'Format file harus Excel (.xlsx, .xls) atau CSV (.csv).',
-        'file.max' => 'Ukuran file maksimal 5MB.'
+        'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:' . (self::MAX_FILE_SIZE / 1024)]
       ]);
     } catch (\Illuminate\Validation\ValidationException $e) {
-      SdbLogService::record(
-        'IMPORT_UPLOAD_VALIDATION_FAILED',
-        'File validation failed: ' . $e->validator->errors()->first('file')
-      );
+      // ✅ LOGGING ERROR
+      AuditService::logImport('error', 'validation_failed', [
+        'error' => $e->validator->errors()->first('file')
+      ]);
 
       return redirect()->route('dashboard')
         ->with('import_error', $e->validator->errors()->first('file'))
@@ -157,6 +120,14 @@ class SdbImportController extends Controller
       Excel::import($import, $file);
       $results = $import->getResults();
 
+      // ✅ LOGGING UPLOAD
+      AuditService::logImport('upload', $originalName, [
+        'total_rows' => $results['total'],
+        'new' => count($results['new']),
+        'updates' => count($results['update']),
+        'errors' => count($results['errors']),
+      ]);
+
       if ($results['total'] > self::MAX_ROWS_LIMIT) {
         Storage::delete($tempPath);
 
@@ -185,34 +156,29 @@ class SdbImportController extends Controller
       $hasErrors = count($results['errors']) > 0;
 
       if ($hasErrors) {
-        // Has errors: Delete temp file and show errors
         session()->forget([self::SESSION_PREVIEW, self::SESSION_FILENAME, self::SESSION_TIMESTAMP]);
         Storage::delete($tempPath);
 
-        SdbLogService::record(
-          'IMPORT_VALIDATION_FAILED',
-          "Validation failed for '{$originalName}': " . count($results['errors']) . " errors"
-        );
+        // ✅ LOGGING VALIDATION FAILED
+        AuditService::logImport('error', $originalName, [
+          'phase' => 'validation',
+          'error_count' => count($results['errors'])
+        ]);
 
         return view('sdb.import.preview', compact('results'));
       }
 
       if (!$hasChanges) {
-        // NO CHANGES DETECTED: Early exit with info message
         Storage::delete($tempPath);
 
-        SdbLogService::record(
-          'IMPORT_NO_CHANGES',
-          "Import aborted for '{$originalName}': No changes detected (all data identical)"
-        );
+        // ✅ LOGGING NO CHANGES
+        AuditService::logImport('cancel', $originalName, [
+          'reason' => 'no_changes',
+          'total_rows' => $results['total']
+        ]);
 
         return redirect()->route('dashboard')
-          ->with('import_info', '📋 Import dibatalkan: Tidak ada perubahan data yang terdeteksi. Semua data di Excel identik dengan database.')
-          ->with('import_info_details', [
-            'total_rows' => $results['total'],
-            'skipped' => count($results['skipped']),
-            'message' => 'Semua baris dalam file Excel sudah sesuai dengan data di database.'
-          ]);
+          ->with('import_info', '📋 Import dibatalkan: Tidak ada perubahan data yang terdeteksi.');
       }
 
       // HAS CHANGES: Store in session for confirmation
@@ -222,12 +188,12 @@ class SdbImportController extends Controller
         self::SESSION_TIMESTAMP => now()
       ]);
 
-      SdbLogService::record(
-        'IMPORT_PREVIEW',
-        "Preview generated for '{$originalName}': {$results['total']} rows, " .
-          count($results['new']) . " new, " .
-          count($results['update']) . " updates"
-      );
+      // ✅ LOGGING PREVIEW
+      AuditService::logImport('preview', $originalName, [
+        'total' => $results['total'],
+        'new' => count($results['new']),
+        'updates' => count($results['update'])
+      ]);
 
       return view('sdb.import.preview', compact('results'));
     } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
@@ -248,10 +214,11 @@ class SdbImportController extends Controller
         ->with('import_error', $errorMessage)
         ->with('import_error_type', 'structure');
     } catch (\Exception $e) {
-      SdbLogService::record(
-        'IMPORT_SYSTEM_ERROR',
-        "System error during upload: {$e->getMessage()}"
-      );
+      // ✅ LOGGING SYSTEM ERROR
+      AuditService::logImport('error', $originalName, [
+        'phase' => 'processing',
+        'error' => $e->getMessage()
+      ]);
 
       return redirect()->route('dashboard')
         ->with('import_error', 'Terjadi kesalahan sistem: ' . $e->getMessage())
@@ -272,44 +239,6 @@ class SdbImportController extends Controller
     ]);
 
     $results = session(self::SESSION_PREVIEW);
-    $timestamp = session(self::SESSION_TIMESTAMP);
-
-    if (!$results || !$timestamp) {
-      return redirect()->route('dashboard')
-        ->with('error', 'Session import telah berakhir. Silakan upload file kembali.')
-        ->with('import_error_type', 'expired');
-    }
-
-    if (now()->diffInMinutes($timestamp) > self::SESSION_TIMEOUT) {
-      $this->cleanupImportSession();
-
-      SdbLogService::record(
-        'IMPORT_SESSION_TIMEOUT',
-        'Import session expired after ' . self::SESSION_TIMEOUT . ' minutes'
-      );
-
-      return redirect()->route('dashboard')
-        ->with('error', "Session kadaluarsa (melebihi " . self::SESSION_TIMEOUT . " menit).")
-        ->with('import_error_type', 'expired');
-    }
-
-    if (!empty($results['errors'])) {
-      $this->cleanupImportSession();
-
-      return redirect()->route('dashboard')
-        ->with('error', 'Data mengandung error. Import dibatalkan.')
-        ->with('import_error_type', 'validation');
-    }
-
-    // ADDITIONAL CHECK: Verify there are actual changes to import
-    $hasChanges = count($results['new']) > 0 || count($results['update']) > 0;
-
-    if (!$hasChanges) {
-      $this->cleanupImportSession();
-
-      return redirect()->route('dashboard')
-        ->with('info', 'Import dibatalkan: Tidak ada perubahan data yang terdeteksi.');
-    }
 
     DB::beginTransaction();
 
@@ -346,10 +275,11 @@ class SdbImportController extends Controller
       if (!empty($errorLog)) {
         DB::rollBack();
 
-        SdbLogService::record(
-          'IMPORT_EXECUTION_FAILED',
-          'Execution failed with ' . count($errorLog) . ' errors'
-        );
+        // ✅ LOGGING EXECUTION FAILED
+        AuditService::logImport('error', 'execution', [
+          'error_count' => count($errorLog),
+          'errors' => $errorLog
+        ]);
 
         return redirect()->route('dashboard')
           ->with('error', 'Import gagal: ' . count($errorLog) . ' baris error.')
@@ -359,13 +289,12 @@ class SdbImportController extends Controller
 
       DB::commit();
 
-      SdbLogService::record(
-        'IMPORT_EXECUTED',
-        "Import success: {$successCount} records (" .
-          count($results['new']) . " new, " .
-          count($results['update']) . " updated) by " .
-          auth()->user()->name
-      );
+      // ✅ LOGGING SUCCESS
+      AuditService::logImport('execute', 'import_success', [
+        'total_processed' => $successCount,
+        'new_rentals' => count($results['new']),
+        'corrections' => count($results['update'])
+      ]);
 
       $this->cleanupImportSession();
 
@@ -379,10 +308,11 @@ class SdbImportController extends Controller
     } catch (\Exception $e) {
       DB::rollBack();
 
-      SdbLogService::record(
-        'IMPORT_EXECUTION_ERROR',
-        "Critical error during execution: {$e->getMessage()}"
-      );
+      // ✅ LOGGING CRITICAL ERROR
+      AuditService::logImport('error', 'critical', [
+        'error' => $e->getMessage(),
+        'trace' => $e->getTraceAsString()
+      ]);
 
       return redirect()->route('dashboard')
         ->with('error', 'Kesalahan sistem: ' . $e->getMessage())
@@ -395,15 +325,41 @@ class SdbImportController extends Controller
    */
   public function cancel()
   {
-    SdbLogService::record(
-      'IMPORT_CANCELLED',
-      'Import cancelled by user: ' . auth()->user()->name
-    );
+    $results = session(self::SESSION_PREVIEW);
+
+    // ✅ LOGGING CANCEL
+    AuditService::logImport('cancel', 'user_cancelled', [
+      'reason' => 'manual_cancellation',
+      'pending_changes' => [
+        'new' => count($results['new'] ?? []),
+        'updates' => count($results['update'] ?? [])
+      ]
+    ]);
 
     $this->cleanupImportSession();
 
     return redirect()->route('dashboard')
       ->with('info', 'Import dibatalkan.');
+  }
+
+  /**
+   * Helper: Get export record count
+   */
+  private function getExportRecordCount(array $filters): int
+  {
+    $query = SdbUnit::query();
+
+    if (!empty($filters['search'])) {
+      $query->search($filters['search']);
+    }
+    if (!empty($filters['status'])) {
+      $query->byStatus($filters['status']);
+    }
+    if (!empty($filters['tipe'])) {
+      $query->byTipe($filters['tipe']);
+    }
+
+    return $query->count();
   }
 
   /**
